@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Wire Size Calculator</title>
+<title>Kalkulátor průřezu vodiče</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -17,41 +17,37 @@
   --info-bg:rgba(126,205,233,.1);--info-bdr:rgba(126,205,233,.3);
   --bg:#0F1518;
   --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:28px;--r-full:40px;
-  /* Excel table palette — slightly lighter/warmer than main bg */
   --xt-bg:#1A2830;--xt-alt:#162330;--xt-hdr:#0D1C24;--xt-res:#13202C;
   --xt-bdr:#1E3540;--xt-sep:#2A4555;--xt-hover:#1E3040;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-surf);min-height:100vh}
 
-/* App bar */
 .app-bar{background:var(--surf-1);padding:13px 20px;border-bottom:1px solid var(--out-var);display:flex;align-items:center;gap:13px;position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(0,0,0,.45)}
 .app-bar-icon{width:38px;height:38px;border-radius:var(--r-md);background:var(--pri-con);color:var(--on-pri-con);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
 .app-bar h1{font-size:19px;font-weight:500;letter-spacing:.15px}
 .app-bar-sub{font-size:11px;color:var(--on-surf-var);margin-top:1px}
+.lang-seg{display:flex;border-radius:var(--r-full);overflow:hidden;border:1.5px solid var(--out);margin-left:auto;flex-shrink:0}
+.lang-b{padding:6px 13px;font-size:11.5px;font-weight:700;background:transparent;border:none;border-right:1.5px solid var(--out);color:var(--on-surf-var);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .2s;letter-spacing:.5px}
+.lang-b:last-child{border-right:none}
+.lang-b.active{background:var(--pri);color:var(--on-pri)}
 
-/* Tabs */
 .tab-bar{display:flex;background:var(--surf-1);border-bottom:1px solid var(--out-var);position:sticky;top:55px;z-index:9}
 .tab{flex:1;padding:12px 6px;text-align:center;font-size:13px;font-weight:500;font-family:'Roboto',sans-serif;color:var(--on-surf-var);cursor:pointer;border:none;border-bottom:3px solid transparent;background:transparent;letter-spacing:.2px;transition:all .2s}
 .tab.active{color:var(--pri);border-bottom-color:var(--pri);background:rgba(126,205,233,.07)}
 .tab:hover:not(.active){background:rgba(126,205,233,.04)}
 
-/* Layout */
 .content{max-width:710px;margin:0 auto;padding:18px 14px 60px}
 .tab-pane{display:none}.tab-pane.active{display:block}
 
-/* Cards */
 .card{background:var(--surf-1);border:1px solid var(--out-var);border-radius:var(--r-xl);padding:20px;margin-bottom:12px}
 .card-hdr{font-size:11px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:16px}
-
-/* Segmented */
 .seg-group{display:flex;border-radius:var(--r-full);overflow:hidden;border:1.5px solid var(--out);margin-bottom:16px}
 .seg-btn{flex:1;padding:9px 6px;font-size:13px;font-weight:500;background:transparent;border:none;border-right:1.5px solid var(--out);color:var(--on-surf-var);cursor:pointer;font-family:'Roboto',sans-serif;transition:all .2s}
 .seg-btn:last-child{border-right:none}
 .seg-btn.active{background:var(--sec-con);color:var(--on-sec-con);font-weight:600}
 .seg-btn:hover:not(.active){background:rgba(126,205,233,.08)}
 
-/* Fields */
 .row{display:grid;gap:10px;margin-bottom:10px}
 .row.c2{grid-template-columns:1fr 1fr}.row.c3{grid-template-columns:1fr 1fr 1fr}
 .fld{display:flex;flex-direction:column;gap:4px}
@@ -68,18 +64,15 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-surf);m
 .len-inner input{padding:10px 12px;font-size:14px;font-family:'Roboto',sans-serif;border:none;outline:none;background:transparent;color:var(--on-surf)}
 .len-inner select{padding:10px 7px;font-size:12.5px;font-family:'Roboto',sans-serif;border:none;border-left:1px solid var(--out-var);outline:none;background:transparent;color:var(--on-surf-var);cursor:pointer}
 
-/* Warnings */
 .warn-area{margin-bottom:8px}
 .warn-chip{display:flex;align-items:flex-start;gap:7px;background:var(--warn-bg);border:1px solid var(--warn-bdr);border-radius:var(--r-md);padding:7px 12px;font-size:12px;color:var(--warn-col);margin-bottom:5px;line-height:1.4}
 .warn-chip.info{background:var(--info-bg);border-color:var(--info-bdr);color:var(--pri)}
 
-/* Buttons */
 .btn-primary{width:100%;padding:14px;background:var(--pri);color:var(--on-pri);border:none;border-radius:var(--r-full);font-size:14px;font-weight:600;font-family:'Roboto',sans-serif;cursor:pointer;letter-spacing:.4px;transition:all .2s;margin-top:4px}
 .btn-primary:hover{filter:brightness(1.1);box-shadow:0 4px 16px rgba(126,205,233,.25)}
 .btn-primary:active{transform:scale(.98)}
 .err-box{background:rgba(147,0,10,.25);color:var(--err);border:1px solid rgba(255,180,171,.3);border-radius:var(--r-md);padding:10px 15px;font-size:13px;margin-top:8px;display:none}
 
-/* Results */
 .res-card{background:var(--surf-2);border:1px solid var(--pri-con);border-radius:var(--r-xl);padding:20px;margin-top:12px;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 .res-lbl{font-size:10px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:1.2px;opacity:.75;margin-bottom:10px}
 .con-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
@@ -110,7 +103,6 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-surf);m
 .vd-item.actual .vd-val{color:var(--ter)}
 .note-bar{margin-top:12px;background:var(--surf-var);border-radius:var(--r-md);padding:9px 13px;font-size:11px;color:var(--on-surf-var);line-height:1.7;border-left:3px solid var(--pri-con)}
 
-/* What-if */
 .wi-card{background:var(--surf-2);border:1px solid var(--out-var);border-radius:var(--r-xl);padding:18px;margin-top:12px;display:none}
 .wi-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .wi-title{font-size:11px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:1px}
@@ -123,7 +115,6 @@ input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;bac
 .wi-lbl{font-size:9.5px;color:var(--on-surf-var);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
 .wi-val{font-size:15px;font-weight:700;color:var(--pri);font-family:'Roboto Mono',monospace}
 
-/* Converter */
 .conv-dir-row{display:flex;align-items:center;gap:12px;margin-bottom:16px}
 .conv-dir-lbl{font-size:15px;font-weight:500;flex:1;text-align:center;background:var(--surf-2);border:1px solid var(--out-var);border-radius:var(--r-lg);padding:9px}
 .swap-btn{background:var(--sec-con);color:var(--on-sec-con);border:none;border-radius:50%;width:42px;height:42px;font-size:21px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;flex-shrink:0}
@@ -138,49 +129,30 @@ input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;bac
 .badge.sec{background:var(--sec-con);color:var(--on-sec-con)}
 .note-sm{margin-top:10px;background:var(--surf-var);border-radius:var(--r-md);padding:8px 13px;font-size:11px;color:var(--on-surf-var);line-height:1.5;display:none}
 
-/* ═══ BATCH TABLE — Excel-like ═══ */
 .tbl-top{padding:14px 16px 10px;max-width:100%}
 .tbl-globals-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
 .tbl-globals-row .fld{flex:0 0 160px}
 .tbl-toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
-.tbl-hint{font-size:10.5px;color:var(--on-surf-var);margin-left:auto}
 .t-btn{background:var(--surf-var);color:var(--on-surf-var);border:1px solid var(--out-var);border-radius:var(--r-full);padding:7px 14px;font-size:12px;font-family:'Roboto',sans-serif;cursor:pointer;transition:all .2s;font-weight:500;white-space:nowrap}
 .t-btn:hover{background:var(--out-var);color:var(--on-surf)}
 .t-btn.pri{background:var(--pri-con);color:var(--on-pri-con);border-color:var(--pri-con)}
 .t-btn.pri:hover{background:var(--pri);color:var(--on-pri)}
 
-/* The spreadsheet */
 .tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 260px);border-top:1px solid var(--xt-sep);border-bottom:1px solid var(--xt-sep)}
 .data-tbl{width:100%;border-collapse:collapse;min-width:900px;font-size:12.5px}
-
-/* Header */
-.data-tbl thead th{
-  background:var(--xt-hdr);color:var(--pri);
-  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
-  padding:9px 8px;text-align:left;white-space:nowrap;
-  border-right:1px solid var(--xt-sep);border-bottom:2px solid var(--xt-sep);
-  position:sticky;top:0;z-index:5;
-}
+.data-tbl thead th{background:var(--xt-hdr);color:var(--pri);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:9px 8px;text-align:left;white-space:nowrap;border-right:1px solid var(--xt-sep);border-bottom:2px solid var(--xt-sep);position:sticky;top:0;z-index:5}
 .data-tbl thead th.res-hdr{color:var(--ter);background:#0A1720}
-.data-tbl thead th:first-child{border-left:none}
 .data-tbl thead th.sep-l{border-left:2px solid var(--xt-sep)}
-
-/* Body cells */
-.data-tbl tbody tr:nth-child(odd)  td{background:var(--xt-bg)}
+.data-tbl tbody tr:nth-child(odd) td{background:var(--xt-bg)}
 .data-tbl tbody tr:nth-child(even) td{background:var(--xt-alt)}
 .data-tbl tbody tr:hover td{background:var(--xt-hover)}
-.data-tbl td{
-  padding:0;border-right:1px solid var(--xt-bdr);
-  border-bottom:1px solid var(--xt-bdr);vertical-align:middle;
-}
+.data-tbl td{padding:0;border-right:1px solid var(--xt-bdr);border-bottom:1px solid var(--xt-bdr);vertical-align:middle}
 .data-tbl td.res-cell{background:#112030!important;border-left:2px solid var(--xt-sep)}
 .data-tbl tbody tr:hover td.res-cell{background:#162A3A!important}
 .row-num{font-size:11px;color:var(--on-surf-var);text-align:center;padding:0 6px;width:28px;background:var(--xt-hdr)!important;border-right:2px solid var(--xt-sep)!important;font-family:'Roboto Mono',monospace}
 .res-txt{font-family:'Roboto Mono',monospace;font-size:12px;color:var(--pri);padding:5px 8px;white-space:nowrap}
 .res-txt.dim{color:var(--on-surf-var)}
 .res-txt.err{color:var(--err)}
-
-/* Spreadsheet inputs — borderless, full cell */
 .xi{background:transparent;border:none;color:var(--on-surf);font-family:'Roboto Mono',monospace;font-size:12px;padding:6px 8px;outline:none;width:100%;min-width:0;display:block}
 .xi:focus{background:rgba(126,205,233,.09)}
 .xi::placeholder{color:var(--out);font-family:'Roboto',sans-serif}
@@ -192,11 +164,9 @@ input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;bac
 .len-cell .xs:last-child{border-right:none;width:58px}
 .del-btn{background:transparent;border:none;color:var(--out);cursor:pointer;font-size:13px;padding:5px 9px;width:100%;transition:all .2s}
 .del-btn:hover{color:var(--err)}
-
-.tbl-footer{padding:8px 16px;font-size:10.5px;color:var(--on-surf-var);line-height:1.7;display:flex;align-items:center;gap:8px}
+.tbl-footer{padding:8px 16px;font-size:10.5px;color:var(--on-surf-var);line-height:1.7}
 .tbl-footer code{background:var(--surf-var);padding:1px 6px;border-radius:4px;font-size:10.5px}
 
-/* Paste modal */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
 .modal{background:var(--surf-1);border-radius:var(--r-xl);padding:22px;max-width:520px;width:92%;border:1px solid var(--out-var)}
@@ -207,71 +177,78 @@ input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;bac
 .modal-footer{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
 
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--surf-var);color:var(--on-surf);padding:9px 18px;border-radius:var(--r-full);font-size:12.5px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:none;opacity:0;transition:opacity .3s}
-
 option{background:#1C262A;color:var(--on-surf)}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--xt-hdr)}
 ::-webkit-scrollbar-thumb{background:var(--out);border-radius:3px}
-@media(max-width:500px){
-  .row.c2,.row.c3,.con-grid,.vd-grid,.conv-res{grid-template-columns:1fr}
-  .len-row{grid-template-columns:1fr}
-  .tbl-globals-row .fld{flex:1 1 130px}
-}
+@media(max-width:500px){.row.c2,.row.c3,.con-grid,.vd-grid,.conv-res{grid-template-columns:1fr}.len-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
 <div class="app-bar">
   <div class="app-bar-icon">⚡</div>
-  <div><h1>Wire Size Calculator</h1><div class="app-bar-sub">Copper · IEC 60228 · Voltage Drop + Ampacity</div></div>
+  <div>
+    <h1 data-t="appTitle">Kalkulátor průřezu vodiče</h1>
+    <div class="app-bar-sub" data-t="appSub">Měď · IEC 60228 · Úbytek napětí + Zatížitelnost</div>
+  </div>
+  <div class="lang-seg">
+    <button id="btnCze" class="lang-b active" onclick="setLang('cze')">CZ</button>
+    <button id="btnEng" class="lang-b" onclick="setLang('eng')">EN</button>
+  </div>
 </div>
 
 <div class="tab-bar">
-  <button class="tab active" onclick="switchTab(0)">⚡ Calculator</button>
+  <button class="tab active" onclick="switchTab(0)" data-t="tab0">⚡ Kalkulátor</button>
   <button class="tab" onclick="switchTab(1)">⇄ MM²↔AWG</button>
-  <button class="tab" onclick="switchTab(2)">📊 Batch Table</button>
+  <button class="tab" onclick="switchTab(2)" data-t="tab2">📊 Tabulka</button>
 </div>
 
-<!-- ═══ TAB 0 ═══ -->
+<!-- TAB 0 -->
 <div id="pane0" class="tab-pane active"><div class="content">
   <div class="card">
-    <div class="card-hdr">⚙ System Type</div>
+    <div class="card-hdr" data-t="sysType">⚙ Typ systému</div>
     <div class="seg-group">
       <button class="seg-btn active" onclick="setSystem(this,'dc')">DC</button>
-      <button class="seg-btn" onclick="setSystem(this,'ac1')">AC Single-phase</button>
-      <button class="seg-btn" onclick="setSystem(this,'ac3')">AC Three-phase</button>
+      <button class="seg-btn" onclick="setSystem(this,'ac1')" data-t="sysAc1">AC Jednofázové</button>
+      <button class="seg-btn" onclick="setSystem(this,'ac3')" data-t="sysAc3">AC Třífázové</button>
     </div>
   </div>
   <div class="card">
-    <div class="card-hdr">📐 Parameters</div>
+    <div class="card-hdr" data-t="params">📐 Parametry</div>
     <div class="row c2">
-      <div class="fld"><label>Source Voltage</label>
-        <div class="fld-inner"><input type="number" id="voltage" placeholder="e.g. 230" min="0" oninput="liveWarn()"><span class="fld-unit">V</span></div></div>
-      <div class="fld"><label>Current (Peak)</label>
-        <div class="fld-inner"><input type="number" id="current" placeholder="e.g. 25" min="0" oninput="liveWarn()"><span class="fld-unit">A</span></div></div>
+      <div class="fld"><label data-t="srcVoltage">Napájecí napětí</label>
+        <div class="fld-inner"><input type="number" id="voltage" placeholder="např. 230" min="0" oninput="liveWarn()"><span class="fld-unit">V</span></div></div>
+      <div class="fld"><label data-t="current">Proud (špičkový)</label>
+        <div class="fld-inner"><input type="number" id="current" placeholder="např. 25" min="0" oninput="liveWarn()"><span class="fld-unit">A</span></div></div>
     </div>
     <div class="row c3">
-      <div class="fld"><label>Ambient Temperature</label>
+      <div class="fld"><label data-t="ambTemp">Teplota okolí</label>
         <div class="fld-inner"><input type="number" id="ambient" value="30" min="-50" max="100" oninput="liveWarn()"><span class="fld-unit">°C</span></div></div>
-      <div class="fld"><label>Max Wire Temperature</label>
+      <div class="fld"><label data-t="maxTemp">Max. teplota vodiče</label>
         <div class="fld-inner"><input type="number" id="temp" value="75" min="20" max="300" oninput="liveWarn()"><span class="fld-unit">°C</span></div></div>
-      <div class="fld"><label>Allowable Voltage Drop</label>
+      <div class="fld"><label data-t="vdPct">Povolený úbytek napětí</label>
         <div class="fld-inner"><input type="number" id="vdropPct" value="3" min="0.1" max="100" step="0.1" oninput="liveWarn()"><span class="fld-unit">%</span></div></div>
     </div>
     <div class="len-row">
-      <div class="fld"><label>Wire Length</label>
+      <div class="fld"><label data-t="wireLen">Délka vodiče</label>
         <div class="len-inner">
-          <input type="number" id="length" placeholder="Length…" min="0">
+          <input type="number" id="length" placeholder="Délka…" min="0">
           <select id="lenUnit"><option value="m">m</option><option value="cm">cm</option><option value="mm">mm</option></select>
-          <select id="distType"><option value="oneway">One-way</option><option value="total">Total</option></select>
+          <select id="distType">
+            <option value="oneway" data-t="oneWay">Jednosměrně</option>
+            <option value="total" data-t="totalDist">Celkem</option>
+          </select>
         </div>
       </div>
-      <div class="fld"><label>Heat Dissipation</label>
+      <div class="fld"><label data-t="heatDiss">Odvod tepla</label>
         <div class="fld-inner"><select id="hMethod" onchange="onHChange()" style="padding-left:9px;font-size:12.5px">
-          <option value="free">Free air</option><option value="grouped">Grouped</option>
-          <option value="conduit" selected>Conduit</option><option value="custom">Custom</option>
+          <option value="free" data-t="hFree">Volný vzduch</option>
+          <option value="grouped" data-t="hGrouped">Svazek</option>
+          <option value="conduit" selected data-t="hConduit">Trubka</option>
+          <option value="custom" data-t="hCustom">Vlastní</option>
         </select></div>
-        <div class="fld-hint" id="hHint">7 W/m²K (conduit)</div>
+        <div class="fld-hint" id="hHint">7 W/m²K (trubka)</div>
         <div id="hCustRow" style="display:none;margin-top:5px">
           <div class="fld-inner"><input type="number" id="hCustomVal" value="12.5" min="1" max="500" step="0.5" oninput="onHChange()"><span class="fld-unit">W/m²K</span></div>
         </div>
@@ -279,29 +256,29 @@ option{background:#1C262A;color:var(--on-surf)}
     </div>
     <div class="warn-area" id="warnArea"></div>
     <div id="errCalc" class="err-box"></div>
-    <button class="btn-primary" onclick="calculate()">⚡ Calculate Wire Size</button>
+    <button class="btn-primary" onclick="calculate()" data-t="calcBtn">⚡ Vypočítat průřez</button>
   </div>
 
   <div class="res-card" id="results">
-    <div class="res-lbl">Constraint Analysis</div>
+    <div class="res-lbl" data-t="constraintAnalysis">Analýza omezení</div>
     <div class="con-grid">
       <div class="con-card" id="card-vd">
-        <span class="con-badge">LIMITING</span>
-        <div class="c-type">⚡ Voltage Drop</div>
+        <span class="con-badge" data-t="limiting">LIMITUJÍCÍ</span>
+        <div class="c-type" data-t="voltDrop">⚡ Úbytek napětí</div>
         <div class="c-fml" id="fVd">A = I·ρ·2L / V_drop</div>
         <div class="c-val" id="vdExact">—</div><div class="c-sub" id="vdExactSub"></div>
         <div class="c-std"><div class="c-std-v" id="vdStd">—</div><div class="c-std-s">IEC · <span id="vdAwg">—</span></div></div>
       </div>
       <div class="con-card" id="card-amp">
-        <span class="con-badge">LIMITING</span>
-        <div class="c-type">🌡 Ampacity</div>
+        <span class="con-badge" data-t="limiting">LIMITUJÍCÍ</span>
+        <div class="c-type" data-t="ampacity">🌡 Proudová zatížitelnost</div>
         <div class="c-fml">A = (I/K)^(4/3)<br>K = √(h·2√π·ΔT/ρ)</div>
         <div class="c-val" id="ampExact">—</div><div class="c-sub" id="ampExactSub"></div>
         <div class="c-std"><div class="c-std-v" id="ampStd">—</div><div class="c-std-s">IEC · <span id="ampAwg">—</span></div></div>
       </div>
     </div>
     <div class="divider"></div>
-    <div class="res-lbl">Final Recommendation</div>
+    <div class="res-lbl" data-t="finalRec">Doporučení</div>
     <div class="rec-box">
       <div style="font-size:26px;flex-shrink:0">🔌</div>
       <div style="flex:1">
@@ -311,17 +288,17 @@ option{background:#1C262A;color:var(--on-surf)}
       </div>
     </div>
     <div class="divider"></div>
-    <div class="res-lbl">Voltage Drop — with recommended wire</div>
+    <div class="res-lbl" data-t="vdSection">Úbytek napětí — s doporučeným vodičem</div>
     <div class="vd-grid">
-      <div class="vd-item allowed"><div class="vd-lbl">Allowed (max)</div><div class="vd-val" id="rVdAllow">—</div><div class="vd-sub" id="rVdAllowP"></div></div>
-      <div class="vd-item actual"><div class="vd-lbl">Actual (rec. wire)</div><div class="vd-val" id="rVdActual">—</div><div class="vd-sub" id="rVdActualP"></div></div>
+      <div class="vd-item allowed"><div class="vd-lbl" data-t="allowedMax">Povoleno (max)</div><div class="vd-val" id="rVdAllow">—</div><div class="vd-sub" id="rVdAllowP"></div></div>
+      <div class="vd-item actual"><div class="vd-lbl" data-t="actualRec">Skutečné (doporuč. vodič)</div><div class="vd-val" id="rVdActual">—</div><div class="vd-sub" id="rVdActualP"></div></div>
     </div>
     <div class="note-bar" id="rNote"></div>
   </div>
 
   <div class="wi-card" id="wiCard">
     <div class="wi-hdr">
-      <div class="wi-title">⚙ What-If — Vary Current</div>
+      <div class="wi-title" data-t="whatIf">⚙ Co kdyby — Změna proudu</div>
       <div class="wi-cur" id="wiCurLabel">— A</div>
     </div>
     <input type="range" id="wiSlider" min="0.1" max="100" step="0.1" value="5" oninput="updateWhatIf()">
@@ -329,119 +306,234 @@ option{background:#1C262A;color:var(--on-surf)}
       <span id="wiMin">0.1 A</span><span id="wiMax">100 A</span>
     </div>
     <div class="wi-row">
-      <div class="wi-item"><div class="wi-lbl">Wire</div><div class="wi-val" id="wiWire">—</div></div>
+      <div class="wi-item"><div class="wi-lbl" data-t="wiWire">Vodič</div><div class="wi-val" id="wiWire">—</div></div>
       <div class="wi-item"><div class="wi-lbl">AWG</div><div class="wi-val" id="wiAwg">—</div></div>
-      <div class="wi-item"><div class="wi-lbl">Limited by</div><div class="wi-val" id="wiLim">—</div></div>
-      <div class="wi-item"><div class="wi-lbl">P Loss</div><div class="wi-val" id="wiPloss">—</div></div>
-      <div class="wi-item"><div class="wi-lbl">Fuse</div><div class="wi-val" id="wiFuse">—</div></div>
+      <div class="wi-item"><div class="wi-lbl" data-t="wiLimitedBy">Limitováno</div><div class="wi-val" id="wiLim">—</div></div>
+      <div class="wi-item"><div class="wi-lbl" data-t="wiPloss">Ztráty</div><div class="wi-val" id="wiPlossVal">—</div></div>
+      <div class="wi-item"><div class="wi-lbl" data-t="wiFuse">Pojistka</div><div class="wi-val" id="wiFuseVal">—</div></div>
     </div>
   </div>
 </div></div>
 
-<!-- ═══ TAB 1 ═══ -->
+<!-- TAB 1 -->
 <div id="pane1" class="tab-pane"><div class="content">
   <div class="card">
-    <div class="card-hdr">⇄ Direction</div>
+    <div class="card-hdr" data-t="convDir">⇄ Směr převodu</div>
     <div class="conv-dir-row">
       <div class="conv-dir-lbl" id="cFromLbl" style="font-weight:600;color:var(--pri)">MM²</div>
       <button class="swap-btn" onclick="swapConv()">⇄</button>
       <div class="conv-dir-lbl" id="cToLbl">AWG</div>
     </div>
-    <div id="cInMm2"><div class="fld"><label>Cross-Section Area</label>
-      <div class="fld-inner"><input type="number" id="cMm2" placeholder="e.g. 2.5" min="0" step="any"><span class="fld-unit">mm²</span></div>
+    <div id="cInMm2"><div class="fld"><label data-t="crossSection">Průřez vodiče</label>
+      <div class="fld-inner"><input type="number" id="cMm2" placeholder="např. 2.5" min="0" step="any"><span class="fld-unit">mm²</span></div>
     </div></div>
     <div id="cInAwg" style="display:none"><div class="row c2">
-      <div class="fld"><label>Standard AWG</label><div class="fld-inner">
+      <div class="fld"><label data-t="stdAwgLbl">Standardní AWG</label><div class="fld-inner">
         <select id="cAwgSel" style="width:100%;padding-left:12px">
           <option value="-3">4/0</option><option value="-2">3/0</option><option value="-1">2/0</option><option value="0">1/0</option>
           <option value="1">AWG 1</option><option value="2">AWG 2</option><option value="3">AWG 3</option><option value="4">AWG 4</option>
-          <option value="5">AWG 5</option><option value="6">AWG 6</option><option value="8">AWG 8</option><option value="10">AWG 10</option>
-          <option value="12">AWG 12</option><option value="14">AWG 14</option><option value="16">AWG 16</option><option value="18">AWG 18</option>
-          <option value="20">AWG 20</option><option value="22">AWG 22</option><option value="24">AWG 24</option><option value="26">AWG 26</option>
-          <option value="28">AWG 28</option><option value="30">AWG 30</option>
+          <option value="6">AWG 6</option><option value="8">AWG 8</option><option value="10">AWG 10</option><option value="12">AWG 12</option>
+          <option value="14">AWG 14</option><option value="16">AWG 16</option><option value="18">AWG 18</option><option value="20">AWG 20</option>
+          <option value="22">AWG 22</option><option value="24">AWG 24</option><option value="26">AWG 26</option><option value="28">AWG 28</option><option value="30">AWG 30</option>
         </select></div></div>
-      <div class="fld"><label>Or Custom AWG</label><div class="fld-inner">
-        <input type="number" id="cAwgNum" placeholder="e.g. 12" step="1"></div></div>
+      <div class="fld"><label data-t="customAwg">Nebo vlastní AWG</label><div class="fld-inner">
+        <input type="number" id="cAwgNum" placeholder="např. 12" step="1"></div></div>
     </div></div>
     <div id="cErr" class="err-box"></div>
-    <button class="btn-primary" onclick="doConvert()" style="margin-top:10px">⇄ Convert</button>
+    <button class="btn-primary" onclick="doConvert()" style="margin-top:10px" data-t="convBtn">⇄ Převést</button>
   </div>
   <div class="conv-res" id="cResults">
-    <div class="conv-res-item"><div class="conv-res-lbl">Exact</div><div class="conv-res-val" id="cExact">—</div><div class="conv-res-sub" id="cExactSub"></div></div>
-    <div class="conv-res-item"><div class="conv-res-lbl">Closest Standard</div><div class="conv-res-val" id="cClosest">—</div><div class="conv-res-sub" id="cClosestSub"></div><span class="badge sec">NEAREST</span></div>
-    <div class="conv-res-item hl"><div class="conv-res-lbl">Rounded Up</div><div class="conv-res-val" id="cRoundup">—</div><div class="conv-res-sub" id="cRoundupSub"></div><span class="badge">SAFE ↑</span></div>
+    <div class="conv-res-item"><div class="conv-res-lbl" data-t="convExact">Přesně</div><div class="conv-res-val" id="cExact">—</div><div class="conv-res-sub" id="cExactSub"></div></div>
+    <div class="conv-res-item"><div class="conv-res-lbl" data-t="convClosest">Nejbližší standard</div><div class="conv-res-val" id="cClosest">—</div><div class="conv-res-sub" id="cClosestSub"></div><span class="badge sec" data-t="nearest">NEJBLIŽŠÍ</span></div>
+    <div class="conv-res-item hl"><div class="conv-res-lbl" data-t="convRoundup">Zaokrouhleno nahoru</div><div class="conv-res-val" id="cRoundup">—</div><div class="conv-res-sub" id="cRoundupSub"></div><span class="badge" data-t="safeUp">BEZPEČNÉ ↑</span></div>
   </div>
   <div class="note-sm" id="cNote"></div>
 </div></div>
 
-<!-- ═══ TAB 2: BATCH TABLE (full width) ═══ -->
+<!-- TAB 2 -->
 <div id="pane2" class="tab-pane">
   <div class="tbl-top">
     <div class="tbl-globals-row">
-      <div class="fld"><label>Ambient Temperature</label>
+      <div class="fld"><label data-t="ambTemp">Teplota okolí</label>
         <div class="fld-inner"><input type="number" id="tblAmbient" value="30" min="-50" max="100" oninput="tblScheduleCalc()"><span class="fld-unit">°C</span></div></div>
-      <div class="fld"><label>Max Wire Temperature</label>
+      <div class="fld"><label data-t="maxTemp">Max. teplota vodiče</label>
         <div class="fld-inner"><input type="number" id="tblMaxTemp" value="75" min="30" max="300" oninput="tblScheduleCalc()"><span class="fld-unit">°C</span></div></div>
       <div class="tbl-toolbar" style="margin-left:auto;align-self:flex-end">
-        <button class="t-btn pri" onclick="tblAddRow()">＋ Row</button>
-        <button class="t-btn" onclick="tblPasteBtn()">📋 Paste</button>
-        <button class="t-btn" onclick="tblCopyExcel()">⬇ Excel</button>
-        <button class="t-btn" onclick="tblCopyMarkdown()">📄 Markdown</button>
+        <button class="t-btn pri" onclick="tblAddRow()" data-t="addRow">＋ Řádek</button>
+        <button class="t-btn" onclick="tblPasteBtn()" data-t="pasteBtn">📋 Vložit</button>
+        <button class="t-btn" onclick="tblCopyExcel()" data-t="copyExcel">⬇ Excel</button>
+        <button class="t-btn" onclick="tblCopyMarkdown()" data-t="copyMd">📄 Markdown</button>
         <button class="t-btn" onclick="tblClear()" style="color:var(--err)">🗑</button>
       </div>
     </div>
   </div>
-
   <div class="tbl-wrap" id="tblWrap">
     <table class="data-tbl" id="dataTbl">
       <thead><tr>
         <th style="width:32px"></th>
-        <th style="width:72px">Type</th>
+        <th style="width:72px" data-t="thType">Typ</th>
         <th style="width:72px">V (V)</th>
         <th style="width:70px">I (A)</th>
-        <th style="width:58px">VD %</th>
-        <th style="width:210px">Length</th>
-        <th style="width:88px">Heat</th>
+        <th style="width:58px" data-t="thVd">ÚN %</th>
+        <th style="width:210px" data-t="thLength">Délka</th>
+        <th style="width:88px" data-t="thHeat">Teplo</th>
         <th class="res-hdr sep-l" style="width:85px">mm²</th>
         <th class="res-hdr" style="width:72px">AWG</th>
-        <th class="res-hdr" style="width:100px">VD Actual</th>
-        <th class="res-hdr" style="width:75px">P Loss</th>
-        <th class="res-hdr" style="width:65px">Fuse</th>
-        <th class="res-hdr" style="width:80px">Limiting</th>
+        <th class="res-hdr" style="width:100px" data-t="thVdActual">Skut. ÚN</th>
+        <th class="res-hdr" style="width:75px" data-t="thPloss">Ztráty</th>
+        <th class="res-hdr" style="width:65px" data-t="thFuse">Pojistka</th>
+        <th class="res-hdr" style="width:80px" data-t="thLimiting">Limituje</th>
         <th style="width:36px"></th>
       </tr></thead>
       <tbody id="tblBody"></tbody>
     </table>
   </div>
-
-  <div class="tbl-footer">
-    📌 Paste column order: <code>Type | V | A | VD% | Length | Unit | Direction | Heat</code>
-    &nbsp;·&nbsp; Ctrl+V in table to paste
+  <div class="tbl-footer" id="tblFooter">
+    📌 <span data-t="pasteHint">Pořadí sloupců při vkládání:</span> <code>Typ | V | A | ÚN% | Délka | Jedn. | Směr | Teplo</code>
+    &nbsp;<span data-t="pasteCtrlV">· Ctrl+V v tabulce pro vložení</span>
   </div>
 </div>
 
 <!-- Paste Modal -->
 <div class="modal-bg" id="pasteModal">
   <div class="modal">
-    <h3>📋 Paste from Excel</h3>
-    <div class="modal-sub">Column order: <code style="background:var(--surf-var);padding:2px 6px;border-radius:4px">Type | V | A | VD% | Length | Unit | Direction | Heat</code><br>
-    Type: DC / AC / 3P &nbsp;·&nbsp; Unit: m / cm / mm &nbsp;·&nbsp; Direction: total / 1-way &nbsp;·&nbsp; Heat: free / grouped / conduit or W/m²K number</div>
-    <textarea id="pasteArea" placeholder="Paste your Excel data here (Ctrl+V)…"></textarea>
+    <h3 data-t="pasteModalTitle">📋 Vložit z Excelu</h3>
+    <div class="modal-sub">
+      <span data-t="pasteModalSub">Pořadí sloupců:</span><br>
+      <code style="background:var(--surf-var);padding:2px 6px;border-radius:4px">Typ | V | A | ÚN% | Délka | Jednotka | Směr | Teplo</code><br>
+      <span data-t="pasteModalInfo">Typ: DC / AC / 3F · Jedn.: m/cm/mm · Směr: celkem / 1-směr · Teplo: vzduch/svazek/trubka nebo W/m²K</span>
+    </div>
+    <textarea id="pasteArea" data-tp="pasteAreaPh"></textarea>
     <div class="modal-footer">
-      <button class="t-btn" onclick="closePasteModal()">Cancel</button>
-      <button class="t-btn pri" onclick="doPasteImport()">Import</button>
+      <button class="t-btn" onclick="closePasteModal()" data-t="pasteCancel">Zrušit</button>
+      <button class="t-btn pri" onclick="doPasteImport()" data-t="pasteImport">Importovat</button>
     </div>
   </div>
 </div>
 <div id="toast"></div>
 
 <script>
+// ══ TRANSLATIONS ══════════════════════════════════════════════════════════
+const T = {
+  cze:{
+    appTitle:'Kalkulátor průřezu vodiče',appSub:'Měď · IEC 60228 · Úbytek napětí + Zatížitelnost',
+    tab0:'⚡ Kalkulátor',tab2:'📊 Tabulka',
+    sysType:'⚙ Typ systému',sysAc1:'AC Jednofázové',sysAc3:'AC Třífázové',
+    params:'📐 Parametry',srcVoltage:'Napájecí napětí',current:'Proud (špičkový)',
+    ambTemp:'Teplota okolí',maxTemp:'Max. teplota vodiče',vdPct:'Povolený úbytek napětí',
+    wireLen:'Délka vodiče',oneWay:'Jednosměrně',totalDist:'Celkem',
+    heatDiss:'Odvod tepla',hFree:'Volný vzduch',hGrouped:'Svazek',hConduit:'Trubka',hCustom:'Vlastní',
+    calcBtn:'⚡ Vypočítat průřez',
+    constraintAnalysis:'Analýza omezení',voltDrop:'⚡ Úbytek napětí',ampacity:'🌡 Proudová zatížitelnost',
+    limiting:'LIMITUJÍCÍ',finalRec:'Doporučení',
+    limByAmp:'Limitováno proudovou zatížitelností',limByVd:'Limitováno úbytkem napětí',
+    pLossTag:'Ztráty:',wireAmpTag:'Zatížitelnost:',fuseTag:'Doporučená pojistka:',
+    vdSection:'Úbytek napětí — s doporučeným vodičem',allowedMax:'Povoleno (max)',actualRec:'Skutečné (doporuč. vodič)',
+    whatIf:'⚙ Co kdyby — Změna proudu',wiWire:'Vodič',wiLimitedBy:'Limitováno',wiPloss:'Ztráty',wiFuse:'Pojistka',
+    wiAmp:'Zat.',wiVd:'ÚN',
+    convDir:'⇄ Směr převodu',crossSection:'Průřez vodiče',customAwg:'Nebo vlastní AWG',
+    convBtn:'⇄ Převést',convExact:'Přesně',convClosest:'Nejbližší standard',convRoundup:'Zaokrouhleno nahoru',
+    nearest:'NEJBLIŽŠÍ',safeUp:'BEZPEČNÉ ↑',stdAwgLbl:'Standardní AWG',
+    globalSettings:'🌡 Globální nastavení',addRow:'＋ Řádek',pasteBtn:'📋 Vložit',
+    copyExcel:'⬇ Excel',copyMd:'📄 Markdown',
+    thType:'Typ',thVd:'ÚN %',thLength:'Délka',thHeat:'Teplo',
+    thVdActual:'Skut. ÚN',thPloss:'Ztráty',thFuse:'Pojistka',thLimiting:'Limituje',
+    rowDc:'DC',rowAc1:'AC 1F',rowAc3:'AC 3F',row1way:'1-směr',rowTotal:'celkem',
+    rowFree:'14 vzduch',rowGrouped:'10 svaz.',rowConduit:'7 trubka',rowCustom:'vlastní',
+    rowAmpacity:'Zatížitelnost',rowVdrop:'Úbytek nap.',
+    pasteHint:'Pořadí sloupců při vkládání:',pasteCtrlV:'· Ctrl+V v tabulce pro vložení',
+    pasteModalTitle:'📋 Vložit z Excelu',pasteModalSub:'Pořadí sloupců:',
+    pasteModalInfo:'Typ: DC / AC / 3F · Jedn.: m/cm/mm · Směr: celkem / 1-směr · Teplo: vzduch/svazek/trubka nebo W/m²K',
+    pasteAreaPh:'Vložte data z Excelu zde (Ctrl+V)…',
+    pasteCancel:'Zrušit',pasteImport:'Importovat',
+    warnVd10:'⚠ Úbytek napětí > 10 % — vysoké ztráty a poruchy zařízení',
+    warnVd5:'⚠ Úbytek napětí > 5 % — zařízení nemusí správně fungovat',
+    warnThermal:'⚠ Teplotní rezerva < 10 °C — výsledek zatížitelnosti nespolehlivý',
+    warnTemp105:'⚠ Max. teplota > 105 °C — ověřte teplotní odolnost izolace',
+    infoTemp90:'ℹ Max. teplota > 90 °C — standardní PVC nevhodné, použijte XLPE nebo lepší',
+    errFillAll:'Vyplňte prosím všechna pole.',errPositive:'Všechny hodnoty musí být kladné.',
+    errTempAbove:'Max. teplota vodiče musí být vyšší než teplota okolí',
+    errHeat:'Neplatná hodnota odvodu tepla.',
+    toastNoRows:'Nenalezeny žádné platné řádky',toastExcel:'Zkopírováno pro Excel ✓',
+    toastMarkdown:'Zkopírováno jako Markdown ✓',toastEmpty:'Žádné řádky ke kopírování',
+    confirmClear:'Smazat všechny řádky?',of:'z',noteOneway:'jednosměrně',noteTotal:'celkem',
+    placeLen:'Délka…',placeV:'např. 230',placeA:'např. 25',
+  },
+  eng:{
+    appTitle:'Wire Size Calculator',appSub:'Copper · IEC 60228 · Voltage Drop + Ampacity',
+    tab0:'⚡ Calculator',tab2:'📊 Batch Table',
+    sysType:'⚙ System Type',sysAc1:'AC Single-phase',sysAc3:'AC Three-phase',
+    params:'📐 Parameters',srcVoltage:'Source Voltage',current:'Current (Peak)',
+    ambTemp:'Ambient Temperature',maxTemp:'Max Wire Temperature',vdPct:'Allowable Voltage Drop',
+    wireLen:'Wire Length',oneWay:'One-way',totalDist:'Total',
+    heatDiss:'Heat Dissipation',hFree:'Free air',hGrouped:'Grouped',hConduit:'Conduit',hCustom:'Custom',
+    calcBtn:'⚡ Calculate Wire Size',
+    constraintAnalysis:'Constraint Analysis',voltDrop:'⚡ Voltage Drop',ampacity:'🌡 Ampacity',
+    limiting:'LIMITING',finalRec:'Final Recommendation',
+    limByAmp:'Limited by current-carrying capacity (ampacity)',limByVd:'Limited by voltage drop',
+    pLossTag:'P loss:',wireAmpTag:'Wire ampacity:',fuseTag:'Suggested fuse:',
+    vdSection:'Voltage Drop — with recommended wire',allowedMax:'Allowed (max)',actualRec:'Actual (rec. wire)',
+    whatIf:'⚙ What-If — Vary Current',wiWire:'Wire',wiLimitedBy:'Limited by',wiPloss:'P Loss',wiFuse:'Fuse',
+    wiAmp:'Amp.',wiVd:'VD',
+    convDir:'⇄ Direction',crossSection:'Cross-Section Area',customAwg:'Or Custom AWG',
+    convBtn:'⇄ Convert',convExact:'Exact',convClosest:'Closest Standard',convRoundup:'Rounded Up',
+    nearest:'NEAREST',safeUp:'SAFE ↑',stdAwgLbl:'Standard AWG',
+    globalSettings:'🌡 Global Settings',addRow:'＋ Row',pasteBtn:'📋 Paste',
+    copyExcel:'⬇ Excel',copyMd:'📄 Markdown',
+    thType:'Type',thVd:'VD %',thLength:'Length',thHeat:'Heat',
+    thVdActual:'VD Actual',thPloss:'P Loss',thFuse:'Fuse',thLimiting:'Limiting',
+    rowDc:'DC',rowAc1:'AC 1P',rowAc3:'AC 3P',row1way:'1-way',rowTotal:'total',
+    rowFree:'14 free',rowGrouped:'10 grp',rowConduit:'7 cnd',rowCustom:'custom',
+    rowAmpacity:'Ampacity',rowVdrop:'Volt.Drop',
+    pasteHint:'Paste column order:',pasteCtrlV:'· Ctrl+V in table to paste',
+    pasteModalTitle:'📋 Paste from Excel',pasteModalSub:'Column order:',
+    pasteModalInfo:'Type: DC / AC / 3P · Unit: m/cm/mm · Direction: total / 1-way · Heat: free/grouped/conduit or W/m²K number',
+    pasteAreaPh:'Paste your Excel data here (Ctrl+V)…',
+    pasteCancel:'Cancel',pasteImport:'Import',
+    warnVd10:'⚠ Voltage drop > 10% — severe power loss and device issues expected',
+    warnVd5:'⚠ Voltage drop > 5% — devices may not function correctly',
+    warnThermal:'⚠ Thermal headroom < 10°C — ampacity result unreliable',
+    warnTemp105:'⚠ Max temp > 105°C — verify insulation rating carefully',
+    infoTemp90:'ℹ Max temp > 90°C — standard PVC not suitable, use XLPE or better',
+    errFillAll:'Please fill in all fields.',errPositive:'All values must be positive.',
+    errTempAbove:'Max wire temp must be above ambient',
+    errHeat:'Invalid heat dissipation value.',
+    toastNoRows:'No valid rows found',toastExcel:'Copied for Excel ✓',
+    toastMarkdown:'Copied as Markdown ✓',toastEmpty:'No rows to copy',
+    confirmClear:'Clear all rows?',of:'of',noteOneway:'one-way',noteTotal:'total',
+    placeLen:'Length…',placeV:'e.g. 230',placeA:'e.g. 25',
+  }
+};
+
 // ══ CONSTANTS ══
+let lang = 'cze';
 const RHO20=1.724e-8, ALPHA=0.00393;
-const H_PRESETS={free:{h:14,hint:'14 W/m²K (free air)'},grouped:{h:10,hint:'10 W/m²K (grouped)'},conduit:{h:7,hint:'7 W/m²K (conduit)'},custom:{h:null,hint:'custom'}};
+const H_PRESETS={free:{h:14},grouped:{h:10},conduit:{h:7},custom:{h:null}};
 const MM2_STD=[0.5,0.75,1,1.5,2.5,4,6,10,16,25,35,50,70,95,120,150,185,240,300,400,500,630];
 const AWG_STD=[-3,-2,-1,0,1,2,3,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40];
 const FUSE_STD=[1,2,3,4,5,6,8,10,13,16,20,25,32,40,50,63,80,100,125,160,200,250,315,400];
+const SYS_V={dc:24,ac1:230,ac3:400};
+
+// ══ LANGUAGE ══════════════════════════════════════════════════════════════
+function setLang(l){
+  lang=l;
+  document.documentElement.lang=l==='cze'?'cs':'en';
+  document.getElementById('btnCze').classList.toggle('active',l==='cze');
+  document.getElementById('btnEng').classList.toggle('active',l==='eng');
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    const k=el.dataset.t; if(T[l][k]!==undefined) el.textContent=T[l][k];
+  });
+  document.querySelectorAll('[data-tp]').forEach(el=>{
+    const k=el.dataset.tp; if(T[l][k]!==undefined) el.placeholder=T[l][k];
+  });
+  // Update placeholders
+  document.getElementById('length').placeholder=T[l].placeLen;
+  document.getElementById('voltage').placeholder=T[l].placeV;
+  document.getElementById('current').placeholder=T[l].placeA;
+  onHChange();
+  liveWarn();
+  if(document.getElementById('pane2').classList.contains('active')) tblRender();
+}
 
 // ══ MATH ══
 const awgToMm2=n=>{const d=0.127*Math.pow(92,(36-n)/39);return Math.PI/4*d*d};
@@ -456,16 +548,16 @@ function stdAwgUp(e){let r=AWG_STD[0];for(const a of AWG_STD){if(awgToMm2(a)>=e)
 function suggestFuse(Im){let f=FUSE_STD[0];for(const s of FUSE_STD){if(s<=Im)f=s;else break;}return f}
 
 function fullCalc({V,I,Tamb,Tmax,pct,Lone,sys,h}){
-  const rho=RHO20*(1+ALPHA*(Tmax-20)), Vd=V*pct/100;
+  const rho=RHO20*(1+ALPHA*(Tmax-20)),Vd=V*pct/100;
   const vdEx=sys==='ac3'?(Math.sqrt(3)*I*rho*Lone)/Vd:(I*rho*2*Lone)/Vd;
-  const dT=Tmax-Tamb; if(dT<=0) throw 'Max temp must exceed ambient';
+  const dT=Tmax-Tamb;if(dT<=0)throw 'temp';
   const K=Math.sqrt(h*2*Math.sqrt(Math.PI)*dT/rho);
   const ampEx=Math.pow(I/K,4/3);
-  const vdMm2=vdEx*1e6, ampMm2=ampEx*1e6;
-  if(!isFinite(vdMm2)||vdMm2<=0) throw 'Voltage drop calc error';
-  if(!isFinite(ampMm2)||ampMm2<=0) throw 'Ampacity calc error';
+  const vdMm2=vdEx*1e6,ampMm2=ampEx*1e6;
+  if(!isFinite(vdMm2)||vdMm2<=0)throw 'vd';
+  if(!isFinite(ampMm2)||ampMm2<=0)throw 'amp';
   const vdStd=stdMm2Up(vdMm2),ampStd=stdMm2Up(ampMm2);
-  const recStd=Math.max(vdStd,ampStd), recAwg=stdAwgUp(Math.max(vdMm2,ampMm2));
+  const recStd=Math.max(vdStd,ampStd),recAwg=stdAwgUp(Math.max(vdMm2,ampMm2));
   const A_rec=recStd/1e6;
   const vdActV=sys==='ac3'?(Math.sqrt(3)*I*rho*Lone)/A_rec:(I*rho*2*Lone)/A_rec;
   const pLoss=I*I*rho*(sys==='ac3'?3:2)*Lone/A_rec;
@@ -477,85 +569,101 @@ function fullCalc({V,I,Tamb,Tmax,pct,Lone,sys,h}){
 }
 
 // ══ TAB 0 ══
-let sysType='dc', lastParams=null;
-const SYS_DEFAULTS={dc:{v:24},ac1:{v:230},ac3:{v:400}};
+let sysType='dc',lastParams=null;
 function setSystem(btn,t){
   sysType=t;
   btn.closest('.seg-group').querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('voltage').value=SYS_DEFAULTS[t].v;
+  document.getElementById('voltage').value=SYS_V[t];
   liveWarn();
 }
-// Set DC default on load
-document.getElementById('voltage').value=24;
-function getH(){const m=document.getElementById('hMethod').value;if(m==='custom'){const v=parseFloat(document.getElementById('hCustomVal').value);return isNaN(v)?12.5:v;}return H_PRESETS[m].h}
+function getH(){
+  const m=document.getElementById('hMethod').value;
+  if(m==='custom'){const v=parseFloat(document.getElementById('hCustomVal').value);return isNaN(v)?7:v;}
+  return H_PRESETS[m].h;
+}
 function onHChange(){
   const m=document.getElementById('hMethod').value,isC=m==='custom';
   document.getElementById('hCustRow').style.display=isC?'block':'none';
-  const hi=document.getElementById('hHint');
-  if(hi) hi.textContent=isC?(parseFloat(document.getElementById('hCustomVal').value)||'?')+' W/m²K (custom)':H_PRESETS[m].hint;
+  const hi=document.getElementById('hHint');if(!hi)return;
+  const names={free:T[lang].hFree,grouped:T[lang].hGrouped,conduit:T[lang].hConduit};
+  if(isC){const v=parseFloat(document.getElementById('hCustomVal').value);hi.textContent=(isNaN(v)?'?':v)+' W/m²K ('+T[lang].hCustom+')';}
+  else hi.textContent=H_PRESETS[m].h+' W/m²K ('+names[m]+')';
+}
+function switchTab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  document.querySelectorAll('.tab-pane').forEach((p,i)=>p.classList.toggle('active',i===n));
+  if(n===2&&!tblRows.length){tblRows=[newRow(),newRow(),newRow()];tblRender();}
 }
 function liveWarn(){
-  const V=parseFloat(document.getElementById('voltage').value);
   const pct=parseFloat(document.getElementById('vdropPct').value);
-  const T=parseFloat(document.getElementById('temp').value);
+  const T2=parseFloat(document.getElementById('temp').value);
   const Tamb=parseFloat(document.getElementById('ambient').value);
   const w=[];
   if(!isNaN(pct)){
-    if(pct>10) w.push({t:'warn',m:'⚠ Voltage drop > 10% — severe power loss and device issues expected'});
-    else if(pct>5) w.push({t:'warn',m:'⚠ Voltage drop > 5% — devices may not function correctly'});
+    if(pct>10)w.push({t:'warn',m:T[lang].warnVd10});
+    else if(pct>5)w.push({t:'warn',m:T[lang].warnVd5});
   }
-  if(!isNaN(T)&&!isNaN(Tamb)){
-    if(T-Tamb<10) w.push({t:'warn',m:'⚠ Thermal headroom < 10°C — ampacity result unreliable'});
-    if(T>105) w.push({t:'warn',m:'⚠ Max temp > 105°C — verify insulation rating carefully'});
-    else if(T>90) w.push({t:'info',m:'ℹ Max temp > 90°C — standard PVC not suitable, use XLPE or better'});
+  if(!isNaN(T2)&&!isNaN(Tamb)){
+    if(T2-Tamb<10)w.push({t:'warn',m:T[lang].warnThermal});
+    if(T2>105)w.push({t:'warn',m:T[lang].warnTemp105});
+    else if(T2>90)w.push({t:'info',m:T[lang].infoTemp90});
   }
   document.getElementById('warnArea').innerHTML=w.map(x=>`<div class="warn-chip ${x.t==='info'?'info':''}">${x.m}</div>`).join('');
 }
 function calculate(){
   const errEl=document.getElementById('errCalc');
-  const fail=m=>{errEl.textContent=m;errEl.style.display='block';document.getElementById('results').style.display='none';document.getElementById('wiCard').style.display='none'};
+  const fail=m=>{errEl.textContent=m;errEl.style.display='block';document.getElementById('results').style.display='none';document.getElementById('wiCard').style.display='none';};
   errEl.style.display='none';
   const V=parseFloat(document.getElementById('voltage').value);
   const I=parseFloat(document.getElementById('current').value);
   const Tamb=parseFloat(document.getElementById('ambient').value);
-  const T=parseFloat(document.getElementById('temp').value);
+  const Tmp=parseFloat(document.getElementById('temp').value);
   const pct=parseFloat(document.getElementById('vdropPct').value);
   let L=parseFloat(document.getElementById('length').value);
-  const unit=document.getElementById('lenUnit').value, dist=document.getElementById('distType').value, h=getH();
-  if([V,I,Tamb,T,pct,L].some(isNaN)) return fail('Please fill in all fields.');
-  if(V<=0||I<=0||L<=0||pct<=0) return fail('All values must be positive.');
-  if(T<=Tamb) return fail('Max wire temp must be above ambient ('+Tamb+' °C).');
-  if(!isFinite(h)||h<=0) return fail('Invalid heat dissipation value.');
-  if(unit==='cm') L/=100; else if(unit==='mm') L/=1000;
+  const unit=document.getElementById('lenUnit').value,dist=document.getElementById('distType').value,h=getH();
+  if([V,I,Tamb,Tmp,pct,L].some(isNaN))return fail(T[lang].errFillAll);
+  if(V<=0||I<=0||L<=0||pct<=0)return fail(T[lang].errPositive);
+  if(Tmp<=Tamb)return fail(T[lang].errTempAbove+' ('+Tamb+' °C).');
+  if(!isFinite(h)||h<=0)return fail(T[lang].errHeat);
+  if(unit==='cm')L/=100;else if(unit==='mm')L/=1000;
   const Lone=dist==='total'?L/2:L;
-  let res; try{res=fullCalc({V,I,Tamb,Tmax:T,pct,Lone,sys:sysType,h})}catch(e){return fail(String(e))}
-  lastParams={V,I,Tamb,Tmax:T,pct,Lone,sys:sysType,h};
+  let res;
+  try{res=fullCalc({V,I,Tamb,Tmax:Tmp,pct,Lone,sys:sysType,h});}
+  catch(e){return fail(e==='temp'?T[lang].errTempAbove+' ('+Tamb+' °C).':e==='vd'?T[lang].errFillAll:T[lang].errFillAll);}
+  lastParams={V,I,Tamb,Tmax:Tmp,pct,Lone,sys:sysType,h};
+
   document.getElementById('card-vd').classList.toggle('lim',!res.ampLimits);
   document.getElementById('card-amp').classList.toggle('lim',res.ampLimits);
   document.getElementById('fVd').textContent=sysType==='ac3'?'A = √3·I·ρ·L / V_drop':'A = I·ρ·2L / V_drop';
+
+  const ex=T[lang].convExact.toLowerCase();
   document.getElementById('vdExact').textContent=fmtMm2(res.vdMm2)+' mm²';
-  document.getElementById('vdExactSub').textContent='AWG '+mm2ToAwg(res.vdMm2).toFixed(2)+' (exact)';
+  document.getElementById('vdExactSub').textContent='AWG '+mm2ToAwg(res.vdMm2).toFixed(2)+' ('+ex+')';
   document.getElementById('vdStd').textContent=res.vdStd+' mm²';
   document.getElementById('vdAwg').textContent=fmtAwg(res.vdAwg);
   document.getElementById('ampExact').textContent=fmtMm2(res.ampMm2)+' mm²';
-  document.getElementById('ampExactSub').textContent='AWG '+mm2ToAwg(res.ampMm2).toFixed(2)+' (exact)';
+  document.getElementById('ampExactSub').textContent='AWG '+mm2ToAwg(res.ampMm2).toFixed(2)+' ('+ex+')';
   document.getElementById('ampStd').textContent=res.ampStd+' mm²';
   document.getElementById('ampAwg').textContent=fmtAwg(res.ampAwg);
+
   document.getElementById('recMm2').textContent=res.recStd+' mm²  ·  '+fmtAwg(res.recAwg);
-  document.getElementById('recSub').textContent='Limited by '+(res.ampLimits?'current-carrying capacity (ampacity)':'voltage drop');
+  document.getElementById('recSub').textContent=res.ampLimits?T[lang].limByAmp:T[lang].limByVd;
   document.getElementById('recTags').innerHTML=[
-    `<span class="rec-tag hi">P loss: ${fmtW(res.pLoss)}</span>`,
-    `<span class="rec-tag">Wire ampacity: ${res.wireAmp.toFixed(1)} A</span>`,
-    `<span class="rec-tag">Suggested fuse: ${res.fuse} A</span>`
+    `<span class="rec-tag hi">${T[lang].pLossTag} ${fmtW(res.pLoss)}</span>`,
+    `<span class="rec-tag">${T[lang].wireAmpTag} ${res.wireAmp.toFixed(1)} A</span>`,
+    `<span class="rec-tag">${T[lang].fuseTag} ${res.fuse} A</span>`
   ].join('');
+
   document.getElementById('rVdAllow').textContent=res.Vd.toFixed(3)+' V';
-  document.getElementById('rVdAllowP').textContent=pct.toFixed(1)+'% of '+V+' V';
+  document.getElementById('rVdAllowP').textContent=pct.toFixed(1)+'% '+T[lang].of+' '+V+' V';
   document.getElementById('rVdActual').textContent=res.vdActV.toFixed(3)+' V';
-  document.getElementById('rVdActualP').textContent=res.vdActP.toFixed(2)+'% of '+V+' V';
-  const sys={dc:'DC',ac1:'AC 1-ph',ac3:'AC 3-ph'}[sysType];
-  const dl=dist==='total'?(Lone*2).toPrecision(4)+' '+unit+' total':Lone.toPrecision(4)+' '+unit+' 1-way';
-  document.getElementById('rNote').textContent=`${sys} · ${dl} · ${I}A · T_amb=${Tamb}°C · T_max=${T}°C · ρ=${(res.rho*1e8).toFixed(3)}×10⁻⁸Ω·m · h=${h}W/m²K`;
+  document.getElementById('rVdActualP').textContent=res.vdActP.toFixed(2)+'% '+T[lang].of+' '+V+' V';
+
+  const sysLbl={dc:'DC',ac1:T[lang].sysAc1,ac3:T[lang].sysAc3}[sysType];
+  const distLbl=dist==='total'?(Lone*2).toPrecision(4)+' '+unit+' '+T[lang].noteTotal:Lone.toPrecision(4)+' '+unit+' '+T[lang].noteOneway;
+  document.getElementById('rNote').textContent=`${sysLbl} · ${distLbl} · ${I}A · T_amb=${Tamb}°C · T_max=${Tmp}°C · ρ=${(res.rho*1e8).toFixed(3)}×10⁻⁸Ω·m · h=${h}W/m²K`;
+
   document.getElementById('results').style.display='block';
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'nearest'});
   const slMax=Math.max(I*4,50);
@@ -567,65 +675,74 @@ function calculate(){
   updateWhatIf();
 }
 function updateWhatIf(){
-  if(!lastParams) return;
+  if(!lastParams)return;
   const I=parseFloat(document.getElementById('wiSlider').value);
   document.getElementById('wiCurLabel').textContent=I.toFixed(1)+' A';
   try{
     const r=fullCalc({...lastParams,I});
     document.getElementById('wiWire').textContent=r.recStd+' mm²';
     document.getElementById('wiAwg').textContent=fmtAwg(r.recAwg);
-    document.getElementById('wiLim').textContent=r.ampLimits?'Amp.':'VD';
-    document.getElementById('wiPloss').textContent=fmtW(r.pLoss);
-    document.getElementById('wiFuse').textContent=r.fuse+' A';
-  }catch{['wiWire','wiAwg','wiLim','wiPloss','wiFuse'].forEach(id=>document.getElementById(id).textContent='—')}
+    document.getElementById('wiLim').textContent=r.ampLimits?T[lang].wiAmp:T[lang].wiVd;
+    document.getElementById('wiPlossVal').textContent=fmtW(r.pLoss);
+    document.getElementById('wiFuseVal').textContent=r.fuse+' A';
+  }catch{['wiWire','wiAwg','wiLim','wiPlossVal','wiFuseVal'].forEach(id=>document.getElementById(id).textContent='—');}
 }
 
 // ══ TAB 1 ══
 let convDir='mm2ToAwg';
 function swapConv(){
   convDir=convDir==='mm2ToAwg'?'awgToMm2':'mm2ToAwg';const m=convDir==='mm2ToAwg';
-  document.getElementById('cFromLbl').textContent=m?'MM²':'AWG';document.getElementById('cToLbl').textContent=m?'AWG':'MM²';
-  document.getElementById('cFromLbl').style.color='var(--pri)';document.getElementById('cToLbl').style.color='var(--on-surf)';
-  document.getElementById('cInMm2').style.display=m?'block':'none';document.getElementById('cInAwg').style.display=m?'none':'block';
-  document.getElementById('cResults').style.display='none';document.getElementById('cNote').style.display='none';document.getElementById('cErr').style.display='none';
+  document.getElementById('cFromLbl').textContent=m?'MM²':'AWG';
+  document.getElementById('cToLbl').textContent=m?'AWG':'MM²';
+  document.getElementById('cFromLbl').style.color='var(--pri)';
+  document.getElementById('cToLbl').style.color='var(--on-surf)';
+  document.getElementById('cInMm2').style.display=m?'block':'none';
+  document.getElementById('cInAwg').style.display=m?'none':'block';
+  document.getElementById('cResults').style.display='none';
+  document.getElementById('cNote').style.display='none';
+  document.getElementById('cErr').style.display='none';
 }
 function doConvert(){
   const e=document.getElementById('cErr');e.style.display='none';
   if(convDir==='mm2ToAwg'){
     const v=parseFloat(document.getElementById('cMm2').value);
-    if(isNaN(v)||v<=0){e.textContent='Enter a valid MM² value.';e.style.display='block';return}
+    if(isNaN(v)||v<=0){e.textContent=T[lang].errPositive;e.style.display='block';return;}
     const eA=mm2ToAwg(v),cA=closeAwg(v),sA=stdAwgUp(v);
-    document.getElementById('cExact').textContent=isFinite(eA)?eA.toFixed(3):'—';document.getElementById('cExactSub').textContent='AWG (exact)';
-    document.getElementById('cClosest').textContent=fmtAwg(cA);document.getElementById('cClosestSub').textContent=fmtMm2(awgToMm2(cA))+' mm²';
-    document.getElementById('cRoundup').textContent=fmtAwg(sA);document.getElementById('cRoundupSub').textContent=fmtMm2(awgToMm2(sA))+' mm²';
-    document.getElementById('cNote').textContent=`${v} mm² → exact AWG ${eA.toFixed(3)} · closest: ${fmtAwg(cA)} · safe: ${fmtAwg(sA)}`;
+    document.getElementById('cExact').textContent=isFinite(eA)?eA.toFixed(3):'—';
+    document.getElementById('cExactSub').textContent='AWG ('+T[lang].convExact.toLowerCase()+')';
+    document.getElementById('cClosest').textContent=fmtAwg(cA);
+    document.getElementById('cClosestSub').textContent=fmtMm2(awgToMm2(cA))+' mm²';
+    document.getElementById('cRoundup').textContent=fmtAwg(sA);
+    document.getElementById('cRoundupSub').textContent=fmtMm2(awgToMm2(sA))+' mm²';
+    document.getElementById('cNote').textContent=`${v} mm² → AWG ${eA.toFixed(3)} · ${fmtAwg(cA)} · ${fmtAwg(sA)}`;
   }else{
     const cu=parseFloat(document.getElementById('cAwgNum').value);
     const aw=!isNaN(cu)?cu:parseFloat(document.getElementById('cAwgSel').value);
     const em=awgToMm2(aw),cm=closeMm2(em),sm=stdMm2Up(em);
-    document.getElementById('cExact').textContent=fmtMm2(em)+' mm²';document.getElementById('cExactSub').textContent='exact area';
-    document.getElementById('cClosest').textContent=cm+' mm²';document.getElementById('cClosestSub').textContent='IEC standard';
-    document.getElementById('cRoundup').textContent=sm+' mm²';document.getElementById('cRoundupSub').textContent='IEC standard';
-    document.getElementById('cNote').textContent=`AWG ${aw} → exact: ${fmtMm2(em)} mm² · closest IEC: ${cm} mm² · rounded up: ${sm} mm²`;
+    document.getElementById('cExact').textContent=fmtMm2(em)+' mm²';
+    document.getElementById('cExactSub').textContent=T[lang].convExact.toLowerCase();
+    document.getElementById('cClosest').textContent=cm+' mm²';document.getElementById('cClosestSub').textContent='IEC';
+    document.getElementById('cRoundup').textContent=sm+' mm²';document.getElementById('cRoundupSub').textContent='IEC';
+    document.getElementById('cNote').textContent=`AWG ${aw} → ${fmtMm2(em)} mm² · IEC ${cm} mm² / ${sm} mm²`;
   }
-  document.getElementById('cResults').style.display='grid';document.getElementById('cNote').style.display='block';
+  document.getElementById('cResults').style.display='grid';
+  document.getElementById('cNote').style.display='block';
 }
 
 // ══ TAB 2 ══
 let tblRows=[],tblTimer=null;
-function newRow(o={}){return{id:Date.now()+Math.random(),type:'dc',voltage:'',current:'',vdPct:3,length:'',lenUnit:'m',distType:'oneway',hMethod:'conduit',hCustom:12.5,result:null,error:null,...o}}
-function tblAddRow(){tblRows.push(newRow());tblRender()}
-function tblDelete(id){tblRows=tblRows.filter(r=>r.id!==id);tblRender()}
-function tblClear(){if(confirm('Clear all rows?')){tblRows=[];tblRender()}}
+function newRow(o={}){return{id:Date.now()+Math.random(),type:'dc',voltage:'',current:'',vdPct:3,length:'',lenUnit:'m',distType:'oneway',hMethod:'conduit',hCustom:7,result:null,error:null,...o};}
+function tblAddRow(){tblRows.push(newRow());tblRender();}
+function tblDelete(id){tblRows=tblRows.filter(r=>r.id!==id);tblRender();}
+function tblClear(){if(confirm(T[lang].confirmClear)){tblRows=[];tblRender();}}
 function tblUpdate(id,f,v){
   const r=tblRows.find(r=>r.id===id);if(!r)return;
   const nums=['voltage','current','vdPct','length','hCustom'];
   r[f]=nums.includes(f)?(v===''?'':parseFloat(v)):v;
-  // Auto-fill voltage default when type changes and voltage is empty
-  if(f==='type'&&r.voltage==='') r.voltage=SYS_DEFAULTS[v]?.v??24;
+  if(f==='type'&&r.voltage==='')r.voltage=SYS_V[v]??24;
   tblScheduleCalc();
 }
-function tblScheduleCalc(){clearTimeout(tblTimer);tblTimer=setTimeout(tblCalcAll,350)}
+function tblScheduleCalc(){clearTimeout(tblTimer);tblTimer=setTimeout(tblCalcAll,350);}
 function tblCalcAll(){
   const Tamb=parseFloat(document.getElementById('tblAmbient').value)||30;
   const Tmax=parseFloat(document.getElementById('tblMaxTemp').value)||75;
@@ -633,26 +750,27 @@ function tblCalcAll(){
     r.result=null;r.error=null;
     const V=parseFloat(r.voltage),I=parseFloat(r.current),pct=parseFloat(r.vdPct);
     let L=parseFloat(r.length);
-    if([V,I,pct,L].some(isNaN)||V<=0||I<=0||pct<=0||L<=0||Tmax<=Tamb){r.error='check inputs';return}
-    if(r.lenUnit==='cm') L/=100; else if(r.lenUnit==='mm') L/=1000;
+    if([V,I,pct,L].some(isNaN)||V<=0||I<=0||pct<=0||L<=0||Tmax<=Tamb){r.error='!';return;}
+    if(r.lenUnit==='cm')L/=100;else if(r.lenUnit==='mm')L/=1000;
     const Lone=r.distType==='total'?L/2:L;
-    const h=r.hMethod==='custom'?(parseFloat(r.hCustom)||12.5):H_PRESETS[r.hMethod].h;
-    try{r.result=fullCalc({V,I,Tamb,Tmax,pct,Lone,sys:r.type,h})}catch(e){r.error=String(e)}
+    const h=r.hMethod==='custom'?(parseFloat(r.hCustom)||7):H_PRESETS[r.hMethod].h;
+    try{r.result=fullCalc({V,I,Tamb,Tmax,pct,Lone,sys:r.type,h});}catch(e){r.error=String(e);}
   });
   tblRender();
 }
 function tblRender(){
   const tb=document.getElementById('tblBody');if(!tb)return;
-  const hO=k=>['free','grouped','conduit','custom'].map(v=>`<option value="${v}"${k===v?' selected':''}>${{free:'35 free',grouped:'20 grp',conduit:'12.5 cnd',custom:'custom'}[v]}</option>`).join('');
+  const hO=k=>['free','grouped','conduit','custom'].map(v=>
+    `<option value="${v}"${k===v?' selected':''}>${T[lang]['row'+v.charAt(0).toUpperCase()+v.slice(1)]||v}</option>`
+  ).join('');
   tb.innerHTML=tblRows.map((r,i)=>{
-    const res=r.result;
-    const rc=`class="res-cell res-txt${res?'':' dim'}"`;
+    const res=r.result,rc=`class="res-cell res-txt${res?'':' dim'}"`;
     return`<tr>
       <td class="row-num">${i+1}</td>
-      <td><select class="xs" onchange="tblUpdate(${r.id},'type',this.value)" style="width:70px">
-        <option value="dc"${r.type==='dc'?' selected':''}>DC</option>
-        <option value="ac1"${r.type==='ac1'?' selected':''}>AC 1P</option>
-        <option value="ac3"${r.type==='ac3'?' selected':''}>AC 3P</option>
+      <td><select class="xs" style="width:70px" onchange="tblUpdate(${r.id},'type',this.value)">
+        <option value="dc"${r.type==='dc'?' selected':''}>${T[lang].rowDc}</option>
+        <option value="ac1"${r.type==='ac1'?' selected':''}>${T[lang].rowAc1}</option>
+        <option value="ac3"${r.type==='ac3'?' selected':''}>${T[lang].rowAc3}</option>
       </select></td>
       <td><input class="xi" style="width:68px" type="number" value="${r.voltage}" placeholder="V" onchange="tblUpdate(${r.id},'voltage',this.value)"></td>
       <td><input class="xi" style="width:66px" type="number" value="${r.current}" placeholder="A" onchange="tblUpdate(${r.id},'current',this.value)"></td>
@@ -660,40 +778,41 @@ function tblRender(){
       <td><div class="len-cell">
         <input class="xi" style="width:58px" type="number" value="${r.length}" placeholder="L" onchange="tblUpdate(${r.id},'length',this.value)">
         <select class="xs" style="width:44px;border-left:1px solid var(--xt-bdr);border-right:1px solid var(--xt-bdr)" onchange="tblUpdate(${r.id},'lenUnit',this.value)">
-          <option value="m"${r.lenUnit==='m'?' selected':''}>m</option><option value="cm"${r.lenUnit==='cm'?' selected':''}>cm</option><option value="mm"${r.lenUnit==='mm'?' selected':''}>mm</option>
+          <option value="m"${r.lenUnit==='m'?' selected':''}>m</option>
+          <option value="cm"${r.lenUnit==='cm'?' selected':''}>cm</option>
+          <option value="mm"${r.lenUnit==='mm'?' selected':''}>mm</option>
         </select>
         <select class="xs" style="width:60px" onchange="tblUpdate(${r.id},'distType',this.value)">
-          <option value="oneway"${r.distType==='oneway'?' selected':''}>1-way</option><option value="total"${r.distType==='total'?' selected':''}>total</option>
+          <option value="oneway"${r.distType==='oneway'?' selected':''}>${T[lang].row1way}</option>
+          <option value="total"${r.distType==='total'?' selected':''}>${T[lang].rowTotal}</option>
         </select>
       </div></td>
       <td><select class="xs" style="width:84px" onchange="tblUpdate(${r.id},'hMethod',this.value)">${hO(r.hMethod)}</select>
         ${r.hMethod==='custom'?`<input class="xi" style="width:68px;font-size:11px" type="number" value="${r.hCustom}" placeholder="W/m²K" onchange="tblUpdate(${r.id},'hCustom',this.value)">`:''}</td>
-      <td ${rc} style="${!res&&r.error?'':''}">
-        ${res?res.recStd+' mm²':r.error?`<span class="res-txt err" title="${r.error}">⚠ err</span>`:'—'}</td>
+      <td ${rc}>${res?res.recStd+' mm²':r.error?`<span class="res-txt err" title="${r.error}">⚠</span>`:'—'}</td>
       <td ${rc}>${res?fmtAwg(res.recAwg):'—'}</td>
       <td ${rc}>${res?res.vdActV.toFixed(2)+'V <span style="font-size:10px;opacity:.7">('+res.vdActP.toFixed(1)+'%)</span>':'—'}</td>
       <td ${rc}>${res?fmtW(res.pLoss):'—'}</td>
       <td ${rc}>${res?res.fuse+' A':'—'}</td>
-      <td ${rc} style="font-size:11px">${res?(res.ampLimits?'Ampacity':'Volt.Drop'):'—'}</td>
+      <td ${rc} style="font-size:11px">${res?(res.ampLimits?T[lang].rowAmpacity:T[lang].rowVdrop):'—'}</td>
       <td><button class="del-btn" onclick="tblDelete(${r.id})">✕</button></td>
     </tr>`;
   }).join('');
 }
 
-// Paste / copy
 function parseRowFromCols(cols){
   const get=(i,d='')=>(cols[i]??'').toString().trim()||d;
-  const num=(i,d='')=>{const v=parseFloat(get(i));return isNaN(v)?d:v};
+  const num=(i,d='')=>{const v=parseFloat(get(i));return isNaN(v)?d:v;};
   const r=newRow();
   const t=get(0,'dc').toLowerCase();
-  r.type=t.includes('3')||t.includes('three')?'ac3':(t.includes('ac')||t.includes('single')?'ac1':'dc');
+  r.type=t.includes('3')||t.includes('three')||t.includes('3f')||t.includes('3p')?'ac3':(t.includes('ac')||t.includes('single')||t.includes('1f')||t.includes('1p')?'ac1':'dc');
   r.voltage=num(1);r.current=num(2);r.vdPct=num(3,3);r.length=num(4);
   const u=get(5,'m').toLowerCase();r.lenUnit=u==='cm'?'cm':u==='mm'?'mm':'m';
-  const d=get(6,'oneway').toLowerCase();r.distType=d.includes('total')||d==='2'?'total':'oneway';
+  const d=get(6,'oneway').toLowerCase();r.distType=(d.includes('total')||d.includes('celkem')||d==='2')?'total':'oneway';
   const hv=get(7,'conduit').toLowerCase(),hn=parseFloat(hv);
-  if(!isNaN(hn)){r.hMethod='custom';r.hCustom=hn}
-  else if(hv.includes('free')||hv.includes('air'))r.hMethod='free';
-  else if(hv.includes('group'))r.hMethod='grouped';
+  if(!isNaN(hn)){r.hMethod='custom';r.hCustom=hn;}
+  else if(hv.includes('free')||hv.includes('air')||hv.includes('vzduch'))r.hMethod='free';
+  else if(hv.includes('group')||hv.includes('svaz')||hv.includes('bundle'))r.hMethod='grouped';
   else r.hMethod='conduit';
   return r;
 }
@@ -703,28 +822,32 @@ function tblPaste(text){
   lines.forEach(line=>{
     const cols=line.split('\t');if(cols.length<2)return;
     const first=cols[0].trim().toLowerCase();
-    if(['type','#','no','row'].includes(first))return;
+    if(['type','typ','#','no','row'].includes(first))return;
     tblRows.push(parseRowFromCols(cols));n++;
   });
-  if(n>0){tblRender();tblScheduleCalc();showToast(`Pasted ${n} row${n>1?'s':''} ✓`)}
-  else showToast('No valid rows found');
+  if(n>0){tblRender();tblScheduleCalc();showToast(`${T[lang].pasteBtn.replace('📋','').trim()} ${n} ${n===1?T[lang].addRow.replace('＋','').trim():'×'} ✓`);}
+  else showToast(T[lang].toastNoRows);
 }
 async function tblPasteBtn(){
-  try{const t=await navigator.clipboard.readText();if(t)tblPaste(t);else openPasteModal()}
-  catch{openPasteModal()}
+  try{const t=await navigator.clipboard.readText();if(t)tblPaste(t);else openPasteModal();}
+  catch{openPasteModal();}
 }
-function openPasteModal(){document.getElementById('pasteModal').classList.add('open');document.getElementById('pasteArea').value='';setTimeout(()=>document.getElementById('pasteArea').focus(),100)}
-function closePasteModal(){document.getElementById('pasteModal').classList.remove('open')}
-function doPasteImport(){const t=document.getElementById('pasteArea').value;if(t)tblPaste(t);closePasteModal()}
-
-document.getElementById('tblWrap').addEventListener('paste',e=>{e.preventDefault();const t=e.clipboardData.getData('text/plain');if(t)tblPaste(t)});
+function openPasteModal(){
+  document.getElementById('pasteModal').classList.add('open');
+  const ta=document.getElementById('pasteArea');
+  ta.value='';ta.placeholder=T[lang].pasteAreaPh;
+  setTimeout(()=>ta.focus(),100);
+}
+function closePasteModal(){document.getElementById('pasteModal').classList.remove('open');}
+function doPasteImport(){const t=document.getElementById('pasteArea').value;if(t)tblPaste(t);closePasteModal();}
+document.getElementById('tblWrap').addEventListener('paste',e=>{e.preventDefault();const t=e.clipboardData.getData('text/plain');if(t)tblPaste(t);});
 
 async function copyToClipboard(text){
-  try{await navigator.clipboard.writeText(text)}
-  catch{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}
+  try{await navigator.clipboard.writeText(text);}
+  catch{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);}
 }
 function tblCopyExcel(){
-  if(!tblRows.length){showToast('No rows to copy');return}
+  if(!tblRows.length){showToast(T[lang].toastEmpty);return;}
   const hdr=['#','Type','V(V)','I(A)','VD%','Length','Unit','Direction','Heat(W/m²K)','Min(mm²)','AWG','VD(V)','VD%','PLoss(W)','Fuse(A)','Limiting'].join('\t');
   const rows=tblRows.map((r,i)=>{
     const res=r.result,hv=r.hMethod==='custom'?r.hCustom:H_PRESETS[r.hMethod].h;
@@ -732,10 +855,10 @@ function tblCopyExcel(){
       res?res.recStd:'',res?fmtAwg(res.recAwg):'',res?res.vdActV.toFixed(3):'',res?res.vdActP.toFixed(2):'',
       res?res.pLoss.toFixed(3):'',res?res.fuse:'',res?(res.ampLimits?'Ampacity':'Voltage Drop'):''].join('\t');
   });
-  copyToClipboard([hdr,...rows].join('\n'));showToast('Copied for Excel ✓');
+  copyToClipboard([hdr,...rows].join('\n'));showToast(T[lang].toastExcel);
 }
 function tblCopyMarkdown(){
-  if(!tblRows.length){showToast('No rows to copy');return}
+  if(!tblRows.length){showToast(T[lang].toastEmpty);return;}
   const h=['#','Type','V','A','VD%','Length','Wire','AWG','VD Actual','P Loss','Fuse','Limiting'];
   const sep=h.map(()=>'---');
   const lines=['| '+h.join(' | ')+' |','| '+sep.join(' | ')+' |'];
@@ -747,16 +870,13 @@ function tblCopyMarkdown(){
       res?fmtW(res.pLoss):'-',res?res.fuse+'A':'-',
       res?(res.ampLimits?'Ampacity':'Volt.Drop'):'-'].join(' | ')+' |');
   });
-  copyToClipboard(lines.join('\n'));showToast('Copied as Markdown ✓');
+  copyToClipboard(lines.join('\n'));showToast(T[lang].toastMarkdown);
 }
 
-function showToast(msg,ms=2600){const t=document.getElementById('toast');t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity='0',ms)}
+function showToast(msg,ms=2600){const t=document.getElementById('toast');t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity='0',ms);}
 
-function switchTab(n){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));
-  document.querySelectorAll('.tab-pane').forEach((p,i)=>p.classList.toggle('active',i===n));
-  if(n===2&&!tblRows.length){tblRows=[newRow(),newRow(),newRow()];tblRender()}
-}
+// Init
+document.getElementById('voltage').value=24;
 </script>
 </body>
 </html>
