@@ -343,7 +343,10 @@ function scCalculate() {
   const Ik1_min = C_MIN * U0 / Z1_min / 1000;
 
   // ── sanity check: downstream cannot exceed supply ─────────────────────────
-  const Ik_max_kA = Math.max(Ik3_max, Ik2_max, Ik1_max);
+  const isSinglePhase = scVoltPreset === 'ac1';
+  const Ik_max_kA = isSinglePhase
+    ? Ik1_max
+    : Math.max(Ik3_max, Ik2_max, Ik1_max);
   if (Ik_max_kA > ik_kA * 1.01) {
     return fail(
       'Max calculated fault current (' + Ik_max_kA.toFixed(2) +
@@ -405,6 +408,8 @@ function scCalculate() {
   setIkCard('sc-r-ik3-max', 'sc-r-ik3-min', Ik3_max, Ik3_min);
   setIkCard('sc-r-ik2-max', 'sc-r-ik2-min', Ik2_max, Ik2_min);
   setIkCard('sc-r-ik1-max', 'sc-r-ik1-min', Ik1_max, Ik1_min);
+  document.getElementById('sc-r-ik3-card').style.display = isSinglePhase ? 'none' : '';
+  document.getElementById('sc-r-ik2-card').style.display = isSinglePhase ? 'none' : '';
 
   // Trip status (3-state)
   const tripBox    = document.getElementById('sc-trip-box');
@@ -431,7 +436,7 @@ function scCalculate() {
   icuBox.style.display  = exceedsIcu     ? 'block' : 'none';
   icuWarn.style.display = approachingIcu ? 'block' : 'none';
   if (exceedsIcu) {
-    const lbl = Ik_max_kA === Ik3_max ? 'Ik3_max' : (Ik_max_kA === Ik2_max ? 'Ik2_max' : 'Ik1_max');
+    const lbl = isSinglePhase ? 'Ik1_max' : (Ik_max_kA === Ik3_max ? 'Ik3_max' : (Ik_max_kA === Ik2_max ? 'Ik2_max' : 'Ik1_max'));
     icuBox.innerHTML = '⚠ <strong>' + lbl + ' = ' + Ik_max_kA.toFixed(2) + ' kA &gt; Icu = ' + Icu_kA +
       ' kA</strong> — device breaking capacity EXCEEDED!';
   }
@@ -494,25 +499,32 @@ function scCalculate() {
     'Rpe_max (20C)  = ' + fmtmOhm(Rpe_max) + '   Rpe_hot = ' + fmtmOhm(Rpe_hot),
     'Xf = x\' * L = ' + scCableXpm + ' * ' + L + ' = ' + fmtmOhm(Xf) + '   Xpe = ' + fmtmOhm(Xpe),
     '',
-    '=== 3-phase loop impedances ===',
-    'Z3_max = sqrt((Rs+Rf_max)^2 + (Xs+Xf)^2) = ' + fmtmOhm(Z3_max),
-    'Z3_min = sqrt((Rs+Rf_hot)^2 + (Xs+Xf)^2) = ' + fmtmOhm(Z3_min),
-    '',
-    '=== Phase-to-phase loop impedances ===',
-    'Z2 = Z3  (Z(1)=Z(2) for symmetric cable, IEC 60909 §3.6)',
-    '',
+    ...(!isSinglePhase ? [
+      '=== 3-phase loop impedances ===',
+      'Z3_max = sqrt((Rs+Rf_max)^2 + (Xs+Xf)^2) = ' + fmtmOhm(Z3_max),
+      'Z3_min = sqrt((Rs+Rf_hot)^2 + (Xs+Xf)^2) = ' + fmtmOhm(Z3_min),
+      '',
+      '=== Phase-to-phase loop impedances ===',
+      'Z2 = Z3  (Z(1)=Z(2) for symmetric cable, IEC 60909 §3.6)',
+      '',
+    ] : []),
     '=== Phase-to-earth loop impedances (TN) ===',
     'Z1_max = sqrt((Rs+Rf_max+Rpe_max' + (Re>0?'+Re':'')+')^2 + (Xs+Xf+Xpe)^2) = ' + fmtmOhm(Z1_max),
     'Z1_min = sqrt((Rs+Rf_hot+Rpe_hot' + (Re>0?'+Re':'')+')^2 + (Xs+Xf+Xpe)^2) = ' + fmtmOhm(Z1_min),
     '',
     '=== Fault currents ===',
-    'Ik3_max = c_max * U0 / Z3_max = ' + C_MAX + ' * ' + engRound(U0,4) + ' / ' + fmtmOhm(Z3_max) + ' = ' + fmtIkVal(Ik3_max),
-    'Ik3_min = c_min * U0 / Z3_min = ' + C_MIN + ' * ' + engRound(U0,4) + ' / ' + fmtmOhm(Z3_min) + ' = ' + fmtIkVal(Ik3_min),
-    '',
-    'Ik2_max = c_max * U_LL / (2 * Z2_max) = ' + C_MAX + ' * ' + engRound(U_LL,4) + ' / (2 * ' + fmtmOhm(Z2_max) + ') = ' + fmtIkVal(Ik2_max),
-    'Ik2_min = c_min * U_LL / (2 * Z2_min) = ' + fmtIkVal(Ik2_min),
-    '  [Derivation: I"k2 = c*U_LL/(Z(1)+Z(2)) = c*U_LL/(2*Z3), yields exactly (sqrt(3)/2)*Ik3 per IEC 60909 §4.3]',
-    '',
+    ...(isSinglePhase ? [
+      '[Ik2, Ik3 not applicable for 1-phase installation — only Ik1 shown]',
+      '',
+    ] : [
+      'Ik3_max = c_max * U0 / Z3_max = ' + C_MAX + ' * ' + engRound(U0,4) + ' / ' + fmtmOhm(Z3_max) + ' = ' + fmtIkVal(Ik3_max),
+      'Ik3_min = c_min * U0 / Z3_min = ' + C_MIN + ' * ' + engRound(U0,4) + ' / ' + fmtmOhm(Z3_min) + ' = ' + fmtIkVal(Ik3_min),
+      '',
+      'Ik2_max = c_max * U_LL / (2 * Z2_max) = ' + C_MAX + ' * ' + engRound(U_LL,4) + ' / (2 * ' + fmtmOhm(Z2_max) + ') = ' + fmtIkVal(Ik2_max),
+      'Ik2_min = c_min * U_LL / (2 * Z2_min) = ' + fmtIkVal(Ik2_min),
+      '  [Derivation: I"k2 = c*U_LL/(Z(1)+Z(2)) = c*U_LL/(2*Z3), yields exactly (sqrt(3)/2)*Ik3 per IEC 60909 §4.3]',
+      '',
+    ]),
     'Ik1_max = c_max * U0 / Z1_max = ' + C_MAX + ' * ' + engRound(U0,4) + ' / ' + fmtmOhm(Z1_max) + ' = ' + fmtIkVal(Ik1_max),
     'Ik1_min = c_min * U0 / Z1_min = ' + C_MIN + ' * ' + engRound(U0,4) + ' / ' + fmtmOhm(Z1_min) + ' = ' + fmtIkVal(Ik1_min),
     '',
@@ -523,7 +535,9 @@ function scCalculate() {
     'Ik1_min = ' + fmtIkVal(Ik1_min) + '   =>   ' + ['NO TRIP', 'UNCERTAIN (transition band)', 'GUARANTEED TRIP'][tripState],
     '',
     '=== Breaking capacity ===',
-    'Iku_max = max(Ik3_max, Ik2_max, Ik1_max) = ' + Ik_max_kA.toFixed(2) + ' kA',
+    (isSinglePhase
+      ? 'Iku_max = Ik1_max = ' + Ik_max_kA.toFixed(2) + ' kA  [Ik2, Ik3 not applicable for 1-phase]'
+      : 'Iku_max = max(Ik3_max, Ik2_max, Ik1_max) = ' + Ik_max_kA.toFixed(2) + ' kA'),
     'Icu = ' + Icu_kA + ' kA   =>   ' + (exceedsIcu ? 'EXCEEDED!' : (approachingIcu ? 'WARNING: > 80% of Icu' : 'OK')),
     '',
     '=== Maximum cable length (guaranteed trip, c_min, hot cable) ===',
@@ -599,6 +613,10 @@ async function scDownloadPdf() {
       doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
       doc.text('Short-Circuit Current Calculation', M, rY - 2);
 
+      drawFooter(pageNum, totalPages);
+    }
+
+    function drawFooter(pageNum, totalPages) {
       doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
       doc.line(M, PH - M - 6, PW - M, PH - M - 6);
       doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 120, 120);
@@ -788,6 +806,13 @@ async function scDownloadPdf() {
       y += 4.5;
     });
 
+    const realTotal = doc.getNumberOfPages();
+    for (let p = 1; p <= realTotal; p++) {
+      doc.setPage(p);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, PH - M - 8, PW, 25, 'F');
+      drawFooter(p, realTotal);
+    }
     doc.save('short-circuit-ik.pdf');
     showToast('PDF downloaded ✓');
   } catch (e) {
@@ -1576,7 +1601,12 @@ async function dcDownloadPdf() {
       doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3); doc.line(M, rY, PW - M, rY);
       doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
       doc.text('DC Short-Circuit Calculation', M, rY - 2);
-      doc.setDrawColor(180, 180, 180); doc.line(M, PH - M - 6, PW - M, PH - M - 6);
+      drawFooter(pageNum, totalPages);
+    }
+
+    function drawFooter(pageNum, totalPages) {
+      doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
+      doc.line(M, PH - M - 6, PW - M, PH - M - 6);
       doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 120, 120);
       doc.text(ds + (engineer ? '  |  ' + engineer : ''), M, PH - M - 2);
       doc.text('Page ' + pageNum + ' of ' + totalPages, PW / 2, PH - M - 2, { align: 'center' });
@@ -1793,6 +1823,13 @@ async function dcDownloadPdf() {
       y += 4.5;
     });
 
+    const realTotal = doc.getNumberOfPages();
+    for (let p = 1; p <= realTotal; p++) {
+      doc.setPage(p);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, PH - M - 8, PW, 25, 'F');
+      drawFooter(p, realTotal);
+    }
     doc.save('dc-short-circuit.pdf');
     showToast('PDF downloaded ✓');
   } catch (e) {

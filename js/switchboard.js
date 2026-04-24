@@ -635,7 +635,10 @@ async function sbDownloadPdf() {
       doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
       doc.text('Switchboard Temperature Rise Calculation', M, rY - 2);
 
-      // Footer
+      drawFooter(pageNum, totalPages);
+    }
+
+    function drawFooter(pageNum, totalPages) {
       doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.3);
       doc.line(M, PH - M - 6, PW - M, PH - M - 6);
       doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 120, 120);
@@ -884,6 +887,13 @@ async function sbDownloadPdf() {
       y += 5;
     });
 
+    const realTotal = doc.getNumberOfPages();
+    for (let p = 1; p <= realTotal; p++) {
+      doc.setPage(p);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, PH - M - 8, PW, 25, 'F');
+      drawFooter(p, realTotal);
+    }
     doc.save('switchboard-temp-rise.pdf');
     showToast('PDF downloaded ✓');
   } catch (e) {
