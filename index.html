@@ -641,7 +641,7 @@
     <!-- DC SUPPLY -->
     <div class="card">
       <div class="card-hdr" data-t="dcSrcHdr">🔋 DC Supply</div>
-      <div class="fld" style="margin-bottom:12px">
+      <div id="dc-udc-row" class="fld" style="margin-bottom:12px">
         <label data-t="dcUdc">Supply voltage U_DC</label>
         <div class="fld-inner"><input type="number" id="dc-udc" value="48" min="1" step="any"><span class="fld-unit">V</span></div>
       </div>
@@ -652,6 +652,7 @@
             <option value="known_ik" data-t="dcSrcKnownIk">Known Ik (short-circuit current)</option>
             <option value="known_r"  data-t="dcSrcKnownR">Known R_source</option>
             <option value="smps"     data-t="dcSrcSmps">SMPS (current-limited)</option>
+            <option value="battery"  data-t="dcSrcBattery">Battery (R_int)</option>
           </select>
         </div>
       </div>
@@ -675,8 +676,74 @@
         </div>
         <div class="sc-icu-warn" style="display:block;margin-top:8px" data-t="dcSmpsWarn">⚠ SMPS current-limited — magnetic trip not guaranteed, verify thermally</div>
       </div>
+      <div id="dc-src-battery-row" style="display:none">
+        <div class="fld">
+          <label data-t="dcBatChem">Battery chemistry</label>
+          <div class="fld-inner">
+            <select id="dc-bat-chem" onchange="dcOnBatChemChange()" style="padding-left:9px">
+              <option value="lead_acid" data-t="dcBatLeadAcid">Lead-acid (VRLA/AGM/Gel)</option>
+              <option value="lifepo4"   data-t="dcBatLfp">LiFePO4</option>
+              <option value="nicd"      data-t="dcBatNicd">NiCd</option>
+              <option value="custom"    data-t="dcBatCustom">Custom</option>
+            </select>
+          </div>
+        </div>
+        <div class="fld" id="dc-bat-blocks-row" style="margin-bottom:8px">
+          <label data-t="dcBatBlocks">12 V blocks in series</label>
+          <div class="fld-inner"><input type="number" id="dc-bat-blocks" value="2" min="1" max="20" step="1" oninput="dcOnBatBlocksChange()"><span class="fld-unit">×</span></div>
+          <div class="fld-hint" data-t="dcBatBlocksHint">2 = 24 V system (25.4 V / 23.6 V default)</div>
+        </div>
+        <div class="row c2" style="margin-bottom:4px">
+          <div class="fld">
+            <label data-t="dcBatUocMax">U_oc at full charge (100% SoC)</label>
+            <div class="fld-inner"><input type="number" id="dc-bat-uoc-max" value="25.4" min="1" step="any" oninput="dcUpdateRsrcDisplay()"><span class="fld-unit">V</span></div>
+          </div>
+          <div class="fld">
+            <label data-t="dcBatUocMin">U_oc at minimum SoC</label>
+            <div class="fld-inner"><input type="number" id="dc-bat-uoc-min" value="23.6" min="1" step="any" oninput="dcUpdateRsrcDisplay()"><span class="fld-unit">V</span></div>
+          </div>
+        </div>
+        <div class="fld" style="margin-bottom:4px">
+          <label data-t="dcBatRintMode">Internal resistance R_int</label>
+          <div class="seg-group" style="margin-bottom:0" id="dc-bat-rint-mode">
+            <button class="seg-btn active" onclick="dcSetBatRintMode(this,'direct')" data-t="dcBatRintDirect">Enter R_int directly</button>
+            <button class="seg-btn" id="dc-bat-rint-est-btn" onclick="dcSetBatRintMode(this,'estimate')" data-t="dcBatRintEst">Estimate from capacity</button>
+          </div>
+        </div>
+        <div id="dc-bat-rint-direct">
+          <div class="row c2">
+            <div class="fld">
+              <label data-t="dcBatRintMin">R_int_min (warm, full)</label>
+              <div class="fld-inner"><input type="number" id="dc-bat-rint-min" value="5" min="0.001" step="any" oninput="dcUpdateRsrcDisplay()"><span class="fld-unit">mΩ</span></div>
+            </div>
+            <div class="fld">
+              <label data-t="dcBatRintMax">R_int_max (cold, low SoC)</label>
+              <div class="fld-inner"><input type="number" id="dc-bat-rint-max" value="10" min="0.001" step="any" oninput="dcUpdateRsrcDisplay()"><span class="fld-unit">mΩ</span></div>
+            </div>
+          </div>
+          <div class="fld-hint" style="margin-bottom:6px" data-t="dcBatRintHint">Find in battery datasheet. R_int_min = best case (warm, full). R_int_max = worst case (cold, discharged).</div>
+        </div>
+        <div id="dc-bat-rint-estimate" style="display:none">
+          <div class="row c3">
+            <div class="fld">
+              <label data-t="dcBatC10">Capacity C10</label>
+              <div class="fld-inner"><input type="number" id="dc-bat-c10" value="100" min="1" step="any" oninput="dcEstimateBatRint()"><span class="fld-unit">Ah</span></div>
+            </div>
+            <div class="fld">
+              <label data-t="dcBatTmin">T_min</label>
+              <div class="fld-inner"><input type="number" id="dc-bat-tmin" value="-10" step="any" oninput="dcEstimateBatRint()"><span class="fld-unit">°C</span></div>
+            </div>
+            <div class="fld">
+              <label data-t="dcBatTmax">T_max</label>
+              <div class="fld-inner"><input type="number" id="dc-bat-tmax" value="40" step="any" oninput="dcEstimateBatRint()"><span class="fld-unit">°C</span></div>
+            </div>
+          </div>
+          <div id="dc-bat-est-display" class="sc-icu-warn" style="display:none;margin-top:6px;font-size:12px"></div>
+        </div>
+        <div class="sc-icu-warn" style="display:block;margin-top:8px;font-size:12px" data-t="dcBatAgingWarn">⚠ Battery R_int increases with age (lead-acid: up to 2× at end of life). Re-verify protection coordination after battery replacement.</div>
+      </div>
       <div class="sc-computed-row" id="dc-rsrc-display" style="margin-top:10px">
-        <span>R_source =</span> <span id="dc-rsrc-val">—</span>
+        <span id="dc-rsrc-lbl">R_source =</span> <span id="dc-rsrc-val">—</span>
       </div>
     </div>
 
@@ -774,7 +841,7 @@
 
       <div class="sc-res-sub-lbl" data-t="dcResImpTitle">Resistances</div>
       <div class="sc-imp-grid">
-        <div class="sc-imp-item"><div class="sc-imp-lbl">R_source</div><div class="sc-imp-val" id="dc-r-rsrc">—</div></div>
+        <div class="sc-imp-item"><div class="sc-imp-lbl" id="dc-r-rsrc-lbl">R_source</div><div class="sc-imp-val" id="dc-r-rsrc">—</div></div>
         <div class="sc-imp-item"><div class="sc-imp-lbl">R_cable (hot)</div><div class="sc-imp-val" id="dc-r-rcable">—</div></div>
         <div class="sc-imp-item"><div class="sc-imp-lbl">R_PE/return (hot)</div><div class="sc-imp-val" id="dc-r-rpe">—</div></div>
         <div class="sc-imp-item"><div class="sc-imp-lbl">R_loop (min)</div><div class="sc-imp-val" id="dc-r-rloop">—</div></div>
@@ -812,6 +879,7 @@
       <div class="sc-icu-warn" id="dc-smps-warn" style="display:none" data-t="dcSmpsWarnResult">⚠ SMPS current limit may fold back under fault — magnetic trip not reliable. Consider eFuse or verify SMPS short-circuit characteristic.</div>
       <div class="sc-icu-box" id="dc-icu-box" style="display:none"></div>
       <div class="sc-icu-warn" id="dc-icu-warn" style="display:none"></div>
+      <div id="dc-bat-warns" style="display:none"></div>
 
       <div class="divider" style="margin:14px 0"></div>
       <div class="sc-res-sub-lbl" data-t="scResMaxLen">Max. cable length (guaranteed trip)</div>

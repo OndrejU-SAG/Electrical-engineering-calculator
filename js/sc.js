@@ -817,6 +817,9 @@ function scSwitchMode(mode) {
 let dcMaterial  = 'cu';
 let dcCondTemp  = 70;    // °C for min Ik (hot cable = protection worst-case)
 let dcSrcType   = 'known_ik';
+let dcBatRintMode   = 'direct';  // 'direct' | 'estimate'
+let dcBatEstRintMin = null;      // mΩ — populated by dcEstimateBatRint()
+let dcBatEstRintMax = null;      // mΩ
 
 // ─── DC helpers ──────────────────────────────────────────────────────────────
 
@@ -842,13 +845,131 @@ function dcGetRsrcOhm() {
   if (dcSrcType === 'known_r') {
     return (parseFloat(document.getElementById('dc-r-src')?.value) || 0) / 1000;
   }
-  return 0; // SMPS — bypass R_source logic
+  return 0; // SMPS / battery — bypass R_source logic
+}
+
+// ─── Battery helpers ─────────────────────────────────────────────────────────
+
+function dcBatGetRintMin() {
+  if (dcBatRintMode === 'estimate') return dcBatEstRintMin;
+  return parseFloat(document.getElementById('dc-bat-rint-min')?.value) || 0;
+}
+
+function dcBatGetRintMax() {
+  if (dcBatRintMode === 'estimate') return dcBatEstRintMax;
+  return parseFloat(document.getElementById('dc-bat-rint-max')?.value) || 0;
+}
+
+function _dcBatApplyChemDefaults(chem) {
+  const blocks = parseInt(document.getElementById('dc-bat-blocks')?.value) || 2;
+  if (chem === 'lead_acid') {
+    document.getElementById('dc-bat-uoc-max').value = (12.7 * blocks).toFixed(1);
+    document.getElementById('dc-bat-uoc-min').value = (11.8 * blocks).toFixed(1);
+  } else if (chem === 'lifepo4') {
+    document.getElementById('dc-bat-uoc-max').value = '29.2';
+    document.getElementById('dc-bat-uoc-min').value = '25.6';
+  } else if (chem === 'nicd') {
+    document.getElementById('dc-bat-uoc-max').value = '26.0';
+    document.getElementById('dc-bat-uoc-min').value = '22.0';
+  }
+}
+
+function dcOnBatChemChange() {
+  const chem = document.getElementById('dc-bat-chem')?.value;
+  if (!chem) return;
+  document.getElementById('dc-bat-blocks-row').style.display = chem === 'lead_acid' ? 'block' : 'none';
+  const estBtn = document.getElementById('dc-bat-rint-est-btn');
+  if (chem === 'custom') {
+    estBtn.disabled = true;
+    // force direct input mode for custom chemistry
+    const directBtn = document.querySelector('#dc-bat-rint-mode .seg-btn');
+    if (directBtn) dcSetBatRintMode(directBtn, 'direct');
+  } else {
+    estBtn.disabled = false;
+    _dcBatApplyChemDefaults(chem);
+  }
+  if (dcBatRintMode === 'estimate') dcEstimateBatRint();
+  dcUpdateRsrcDisplay();
+}
+
+function dcOnBatBlocksChange() {
+  const chem = document.getElementById('dc-bat-chem')?.value;
+  if (chem !== 'lead_acid') return;
+  const blocks = parseInt(document.getElementById('dc-bat-blocks')?.value) || 2;
+  document.getElementById('dc-bat-uoc-max').value = (12.7 * blocks).toFixed(1);
+  document.getElementById('dc-bat-uoc-min').value = (11.8 * blocks).toFixed(1);
+  if (dcBatRintMode === 'estimate') dcEstimateBatRint();
+  dcUpdateRsrcDisplay();
+}
+
+function dcSetBatRintMode(btn, mode) {
+  const chem = document.getElementById('dc-bat-chem')?.value;
+  if (chem === 'custom' && mode === 'estimate') return;
+  dcBatRintMode = mode;
+  btn.closest('.seg-group').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('dc-bat-rint-direct').style.display   = mode === 'direct'   ? 'block' : 'none';
+  document.getElementById('dc-bat-rint-estimate').style.display = mode === 'estimate' ? 'block' : 'none';
+  if (mode === 'estimate') dcEstimateBatRint();
+  dcUpdateRsrcDisplay();
+}
+
+function dcEstimateBatRint() {
+  const chem   = document.getElementById('dc-bat-chem')?.value;
+  const c10    = parseFloat(document.getElementById('dc-bat-c10')?.value) || 0;
+  const uocMax = parseFloat(document.getElementById('dc-bat-uoc-max')?.value) || 0;
+  const dispEl = document.getElementById('dc-bat-est-display');
+  if (!dispEl) return;
+
+  if (chem === 'custom' || c10 <= 0 || uocMax <= 0) {
+    dispEl.style.display = 'none';
+    dcBatEstRintMin = null; dcBatEstRintMax = null;
+    return;
+  }
+
+  let rint25C, rMinFactor, rMaxFactor;
+  if (chem === 'lead_acid') {
+    rint25C = uocMax / (7 * c10) * 1000;
+    rMinFactor = 0.85; rMaxFactor = 2.0;
+  } else if (chem === 'lifepo4') {
+    rint25C = uocMax / (10 * c10) * 1000;
+    rMinFactor = 0.90; rMaxFactor = 1.50;
+  } else if (chem === 'nicd') {
+    rint25C = uocMax / (8 * c10) * 1000;
+    rMinFactor = 0.80; rMaxFactor = 1.80;
+  } else { return; }
+
+  dcBatEstRintMin = rint25C * rMinFactor;
+  dcBatEstRintMax = rint25C * rMaxFactor;
+
+  dispEl.style.display = 'block';
+  dispEl.innerHTML =
+    '⚠ Estimated values – verify against battery datasheet. Accuracy ±30–50%.<br>' +
+    'R_int_25°C = ' + engRound(rint25C, 3) + ' mΩ → ' +
+    'R_int_min = ' + engRound(dcBatEstRintMin, 3) + ' mΩ | ' +
+    'R_int_max = ' + engRound(dcBatEstRintMax, 3) + ' mΩ';
+  dcUpdateRsrcDisplay();
 }
 
 function dcUpdateRsrcDisplay() {
-  const el = document.getElementById('dc-rsrc-val');
+  const el  = document.getElementById('dc-rsrc-val');
+  const lbl = document.getElementById('dc-rsrc-lbl');
   if (!el) return;
-  if (dcSrcType === 'smps') { el.textContent = 'N/A (SMPS)'; return; }
+  if (dcSrcType === 'smps') {
+    if (lbl) lbl.textContent = 'R_source =';
+    el.textContent = 'N/A (SMPS)';
+    return;
+  }
+  if (dcSrcType === 'battery') {
+    if (lbl) lbl.textContent = 'R_int =';
+    const rMin = dcBatGetRintMin();
+    const rMax = dcBatGetRintMax();
+    el.textContent = (rMin > 0 && rMax > 0)
+      ? engRound(rMin, 3) + ' / ' + engRound(rMax, 3) + ' mΩ'
+      : '—';
+    return;
+  }
+  if (lbl) lbl.textContent = 'R_source =';
   const r = dcGetRsrcOhm();
   el.textContent = r > 0 ? fmtmOhm(r) : '—';
 }
@@ -892,9 +1013,11 @@ function dcSetTempCustom() {
 
 function dcOnSrcTypeChange() {
   dcSrcType = document.getElementById('dc-src-type').value;
-  document.getElementById('dc-src-ik-row').style.display   = dcSrcType === 'known_ik' ? 'block' : 'none';
-  document.getElementById('dc-src-r-row').style.display    = dcSrcType === 'known_r'  ? 'block' : 'none';
-  document.getElementById('dc-src-smps-row').style.display = dcSrcType === 'smps'     ? 'block' : 'none';
+  document.getElementById('dc-src-ik-row').style.display      = dcSrcType === 'known_ik' ? 'block' : 'none';
+  document.getElementById('dc-src-r-row').style.display       = dcSrcType === 'known_r'  ? 'block' : 'none';
+  document.getElementById('dc-src-smps-row').style.display    = dcSrcType === 'smps'     ? 'block' : 'none';
+  document.getElementById('dc-src-battery-row').style.display = dcSrcType === 'battery'  ? 'block' : 'none';
+  document.getElementById('dc-udc-row').style.display         = dcSrcType === 'battery'  ? 'none'  : 'block';
   dcUpdateRsrcDisplay();
 }
 
@@ -919,9 +1042,9 @@ function initDcCalculator() {
       sel.appendChild(opt);
     });
   });
+  dcOnSrcTypeChange();
   dcOnDevTypeChange();
   dcUpdateTripHint();
-  dcUpdateRsrcDisplay();
   dcUpdateRhoHint();
 }
 
@@ -945,7 +1068,8 @@ function dcCalculate() {
   const Icu_kA= parseFloat(document.getElementById('dc-icu').value);
   const devType = document.getElementById('dc-dev-type').value;
 
-  if ([U_DC, S, Spe, L, In, Icu_kA].some(v => isNaN(v) || v <= 0)) {
+  const _valsBase = dcSrcType === 'battery' ? [S, Spe, L, In, Icu_kA] : [U_DC, S, Spe, L, In, Icu_kA];
+  if (_valsBase.some(v => isNaN(v) || v <= 0)) {
     return fail('Please fill in all fields (positive values).');
   }
   if (isNaN(lpm) || lpm < 0) return fail('Cable inductance must be ≥ 0.');
@@ -968,6 +1092,9 @@ function dcCalculate() {
     const Rcable_hot = rhoHot * L / S;
     const Rpe_hot    = rhoHot * L / Spe;
     const Rloop_min  = Rcable_hot + Rpe_hot; // source not included
+    const _smpsRsrcLbl = document.getElementById('dc-r-rsrc-lbl');
+    if (_smpsRsrcLbl) _smpsRsrcLbl.textContent = 'R_source';
+    document.getElementById('dc-bat-warns').style.display = 'none';
     document.getElementById('dc-r-rsrc').textContent   = 'N/A (SMPS)';
     document.getElementById('dc-r-rcable').textContent = fmtmOhm(Rcable_hot);
     document.getElementById('dc-r-rpe').textContent    = fmtmOhm(Rpe_hot);
@@ -1002,9 +1129,230 @@ function dcCalculate() {
     document.getElementById('dc-res-card').style.display = 'block';
     document.getElementById('dc-res-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    window._dcLastResult = { smps: true, U_DC, I_lim, In, Icu_kA, devType, tripState, tripLo, tripHi,
+    window._dcLastResult = { smps: true, battery: false, U_DC, I_lim, In, Icu_kA, devType, tripState, tripLo, tripHi,
       curveLabel, exceedsIcu: false, approachingIcu: false, L_max: -1, S, Spe, L,
       Rcable_hot, Rpe_hot, dcCondTemp, dcMaterial };
+    return;
+  }
+
+  // ── Battery mode ───────────────────────────────────────────────────────────
+  if (dcSrcType === 'battery') {
+    const uocMax    = parseFloat(document.getElementById('dc-bat-uoc-max')?.value);
+    const uocMin    = parseFloat(document.getElementById('dc-bat-uoc-min')?.value);
+    const rintMinMO = dcBatGetRintMin();   // mΩ
+    const rintMaxMO = dcBatGetRintMax();   // mΩ
+    const chem      = document.getElementById('dc-bat-chem')?.value || 'lead_acid';
+    const tmin      = parseFloat(document.getElementById('dc-bat-tmin')?.value);
+    const batEstimated = dcBatRintMode === 'estimate';
+
+    if (isNaN(uocMax) || uocMax <= 0) return fail('Enter valid U_oc_max.');
+    if (isNaN(uocMin) || uocMin <= 0) return fail('Enter valid U_oc_min.');
+    if (uocMin >= uocMax)             return fail('U_oc_min must be less than U_oc_max.');
+    if (!rintMinMO || rintMinMO <= 0) return fail(batEstimated ? 'Cannot estimate R_int — check C10 and U_oc_max.' : 'Enter valid R_int_min.');
+    if (!rintMaxMO || rintMaxMO <= 0) return fail('Enter valid R_int_max.');
+    if (rintMinMO >= rintMaxMO)       return fail('R_int_min must be less than R_int_max.');
+
+    const R_int_min = rintMinMO / 1000;   // Ω
+    const R_int_max = rintMaxMO / 1000;   // Ω
+
+    const rhoRef = dcGetRhoRef();
+    const rhoHot = dcGetRhoHot();
+
+    const Rcable_max = rhoRef * L / S;
+    const Rcable_hot = rhoHot * L / S;
+    const Rpe_max    = rhoRef * L / Spe;
+    const Rpe_hot    = rhoHot * L / Spe;
+
+    // Ik_max: best battery (R_int_min, U_oc_max) + cold cable (20°C)
+    const Rloop_max = R_int_min + Rcable_max + Rpe_max;
+    // Ik_min: worst battery (R_int_max, U_oc_min) + hot cable (operating T)
+    const Rloop_min = R_int_max + Rcable_hot + Rpe_hot;
+
+    if (Rloop_max <= 0) return fail('Total loop resistance ≤ 0. Check inputs.');
+
+    const Ik_max = uocMax / Rloop_max;
+    const Ik_min = uocMin / Rloop_min;
+
+    const L_loop_uH = 2 * lpm * L;
+    const L_loop_H  = L_loop_uH * 1e-6;
+    const tau_s     = L_loop_H / Rloop_max;
+    const tau_ms    = tau_s * 1000;
+    const tau3_ms   = 3 * tau_ms;
+
+    const curveLabel = isFuse ? 'gG fuse' : SC_CURVES[curveSel].label;
+    const tripState  = Ik_min >= tripHi ? 2 : (Ik_min >= tripLo ? 1 : 0);
+
+    const exceedsIcu     = Ik_max / 1000 > Icu_kA;
+    const approachingIcu = !exceedsIcu && Ik_max / 1000 > 0.8 * Icu_kA;
+
+    // L_max (non-linear: R_int is fixed, only cable length varies)
+    // Ztarget = U_oc_min / tripHi  →  R_int_max + rho_hot*(1/S+1/Spe)*L = Ztarget
+    let L_max = -1;
+    const Ztarget_bat = tripHi > 0 ? uocMin / tripHi : 0;
+    if (Ztarget_bat > 0) {
+      const R_avail = Ztarget_bat - R_int_max;
+      if (R_avail > 0) {
+        const B_dc = rhoHot * (1 / S + 1 / Spe);
+        L_max = R_avail / B_dc;
+      } else {
+        L_max = -2;  // R_int_max alone exceeds Ztarget
+      }
+    }
+
+    // ── Populate results UI ──
+    const fmtA = v => v >= 1000 ? engRound(v / 1000, 3) + ' kA' : engRound(v, 3) + ' A';
+    const rsrcLbl = document.getElementById('dc-r-rsrc-lbl');
+    if (rsrcLbl) rsrcLbl.textContent = 'R_int_min / R_int_max';
+    document.getElementById('dc-r-rsrc').textContent   = engRound(rintMinMO, 3) + ' / ' + engRound(rintMaxMO, 3) + ' mΩ';
+    document.getElementById('dc-r-rcable').textContent = fmtmOhm(Rcable_hot);
+    document.getElementById('dc-r-rpe').textContent    = fmtmOhm(Rpe_hot);
+    document.getElementById('dc-r-rloop').textContent  = fmtmOhm(Rloop_min);
+    document.getElementById('dc-r-ik-max').textContent = fmtA(Ik_max);
+    document.getElementById('dc-r-ik-min').textContent = fmtA(Ik_min);
+    document.getElementById('dc-r-tau').textContent    = engRound(tau_ms, 3) + ' ms';
+    document.getElementById('dc-r-3tau').textContent   = engRound(tau3_ms, 3) + ' ms';
+
+    _dcSetTripBox(tripState, Ik_min, Ik_max, tripLo, tripHi);
+    document.getElementById('dc-smps-warn').style.display = 'none';
+
+    const icuBox  = document.getElementById('dc-icu-box');
+    const icuWarn = document.getElementById('dc-icu-warn');
+    icuBox.style.display  = exceedsIcu     ? 'block' : 'none';
+    icuWarn.style.display = approachingIcu ? 'block' : 'none';
+    if (exceedsIcu)     icuBox.innerHTML  = '⚠ <strong>Ik_max = ' + fmtA(Ik_max) + ' > Icu_DC = ' + Icu_kA + ' kA</strong> — DC breaking capacity EXCEEDED!';
+    if (approachingIcu) icuWarn.innerHTML = '⚠ Ik_max = ' + fmtA(Ik_max) + ' > 80% of Icu_DC = ' + Icu_kA + ' kA — consider higher-rated device.';
+
+    // Battery-specific warnings
+    const batWarns = document.getElementById('dc-bat-warns');
+    const warnParts = [];
+    if (batEstimated) warnParts.push('⚠ Estimation only – obtain R_int from datasheet or measure with battery impedance tester (e.g. Hioki BT3554).');
+    if (chem === 'lead_acid' && !isNaN(tmin) && tmin < 0) warnParts.push('⚠ Lead-acid R_int at sub-zero temperatures may exceed estimates. Consider heated battery enclosure.');
+    if (Ik_max > 500) warnParts.push('⚠ High prospective short-circuit current from battery (Ik_max > 500 A). Verify DC Icu rating of protective device includes battery source contribution.');
+    if (batWarns) {
+      batWarns.style.display = warnParts.length ? 'block' : 'none';
+      batWarns.innerHTML = warnParts.map(w => '<div class="sc-icu-warn" style="margin-top:4px">' + w + '</div>').join('');
+    }
+
+    // Max cable length
+    const mlBox = document.getElementById('dc-maxlen-box');
+    if (L_max > 0) {
+      mlBox.textContent = engRound(L_max, 3) + ' m';
+      mlBox.className   = 'sc-maxlen-box ' + (L > L_max ? 'sc-maxlen-warn' : 'sc-maxlen-ok');
+      if (L > L_max) mlBox.textContent += '  ⚠ Current cable (' + L + ' m) exceeds max length!';
+    } else if (L_max === -2) {
+      mlBox.textContent = 'Source R_int_max alone exceeds target — guaranteed trip not achievable regardless of cable length. Use higher-rated device or increase conductor cross-section.';
+      mlBox.className   = 'sc-maxlen-box sc-maxlen-warn';
+    } else {
+      mlBox.textContent = 'Cannot calculate — check inputs';
+      mlBox.className   = 'sc-maxlen-box sc-maxlen-warn';
+    }
+
+    // ── Step-by-step ──
+    const fmtO  = v => engRound(v, 3) + ' Ohm';
+    const fmtmO = v => engRound(v * 1000, 3) + ' mOhm';
+    const CHEM_NAME = { lead_acid: 'Lead-acid (VRLA/AGM/Gel)', lifepo4: 'LiFePO4', nicd: 'NiCd', custom: 'Custom' };
+    const batRintSrc = batEstimated ? 'estimated' : 'datasheet';
+    const c10 = parseFloat(document.getElementById('dc-bat-c10')?.value) || 0;
+
+    const batLines = [
+      '=== Battery source parameters ===',
+      'Chemistry: ' + (CHEM_NAME[chem] || chem),
+      'U_oc_max = ' + uocMax + ' V  (100% SoC)',
+      'U_oc_min = ' + uocMin + ' V  (minimum SoC)',
+      'R_int_min = ' + fmtmO(R_int_min) + '  (source: ' + batRintSrc + ')',
+      'R_int_max = ' + fmtmO(R_int_max) + '  (source: ' + batRintSrc + ')',
+    ];
+
+    if (batEstimated && c10 > 0) {
+      batLines.push('');
+      batLines.push('=== R_int estimation from capacity ===');
+      if (chem === 'lead_acid') {
+        const r25 = uocMax / (7 * c10) * 1000;
+        batLines.push('C10 = ' + c10 + ' Ah');
+        batLines.push('R_int_25C = U_oc_max / (7 * C10) * 1000 = ' + uocMax + ' / (7 * ' + c10 + ') * 1000 = ' + engRound(r25, 3) + ' mOhm');
+        batLines.push('R_int_min = R_int_25C * 0.85 = ' + engRound(r25 * 0.85, 3) + ' mOhm  (warm 40C, full SoC)');
+        batLines.push('R_int_max = R_int_25C * 2.0  = ' + engRound(r25 * 2.0, 3) + ' mOhm  (cold -10C, low SoC)');
+      } else if (chem === 'lifepo4') {
+        const r25 = uocMax / (10 * c10) * 1000;
+        batLines.push('C10 = ' + c10 + ' Ah');
+        batLines.push('R_int_25C = U_oc_max / (10 * C10) * 1000 = ' + uocMax + ' / (10 * ' + c10 + ') * 1000 = ' + engRound(r25, 3) + ' mOhm');
+        batLines.push('R_int_min = R_int_25C * 0.90 = ' + engRound(r25 * 0.90, 3) + ' mOhm  (40C)');
+        batLines.push('R_int_max = R_int_25C * 1.50 = ' + engRound(r25 * 1.50, 3) + ' mOhm  (-10C)');
+      } else if (chem === 'nicd') {
+        const r25 = uocMax / (8 * c10) * 1000;
+        batLines.push('C10 = ' + c10 + ' Ah');
+        batLines.push('R_int_25C = U_oc_max / (8 * C10) * 1000 = ' + uocMax + ' / (8 * ' + c10 + ') * 1000 = ' + engRound(r25, 3) + ' mOhm');
+        batLines.push('R_int_min = R_int_25C * 0.80 = ' + engRound(r25 * 0.80, 3) + ' mOhm');
+        batLines.push('R_int_max = R_int_25C * 1.80 = ' + engRound(r25 * 1.80, 3) + ' mOhm');
+      }
+      batLines.push('WARNING: Estimated values – verify against battery datasheet. Accuracy +/-30-50%.');
+    }
+
+    batLines.push('');
+    batLines.push('=== Cable parameters (DC — resistive only, no reactance) ===');
+    batLines.push('Material: ' + dcMaterial.toUpperCase() + '   Temp (max Ik): 20 C   Temp (min Ik): ' + dcCondTemp + ' C');
+    batLines.push('rho_ref (20C) = ' + engRound(rhoRef, 4) + ' Ohm*mm2/m');
+    batLines.push('rho_hot (' + dcCondTemp + 'C) = ' + engRound(rhoHot, 4) + ' Ohm*mm2/m');
+    batLines.push('S = ' + S + ' mm2   Spe = ' + Spe + ' mm2   L = ' + L + ' m');
+    batLines.push('l\' = ' + lpm + ' uH/m');
+    batLines.push('');
+    batLines.push('=== Battery fault current calculation ===');
+    batLines.push('--- For Ik_max (best battery + cold cable 20C) ---');
+    batLines.push('Rcable_max(20C) = ' + fmtmO(Rcable_max) + '   Rpe_max(20C) = ' + fmtmO(Rpe_max));
+    batLines.push('R_loop_max = R_int_min + Rcable_max + Rpe_max');
+    batLines.push('           = ' + fmtmO(R_int_min) + ' + ' + fmtmO(Rcable_max) + ' + ' + fmtmO(Rpe_max) + ' = ' + fmtmO(Rloop_max));
+    batLines.push('Ik_max = U_oc_max / R_loop_max = ' + uocMax + ' / ' + fmtO(Rloop_max) + ' = ' + fmtA(Ik_max));
+    batLines.push('');
+    batLines.push('--- For Ik_min (worst battery + hot cable ' + dcCondTemp + 'C) ---');
+    batLines.push('Rcable_hot(' + dcCondTemp + 'C) = ' + fmtmO(Rcable_hot) + '   Rpe_hot = ' + fmtmO(Rpe_hot));
+    batLines.push('R_loop_min = R_int_max + Rcable_hot + Rpe_hot');
+    batLines.push('           = ' + fmtmO(R_int_max) + ' + ' + fmtmO(Rcable_hot) + ' + ' + fmtmO(Rpe_hot) + ' = ' + fmtmO(Rloop_min));
+    batLines.push('Ik_min = U_oc_min / R_loop_min = ' + uocMin + ' / ' + fmtO(Rloop_min) + ' = ' + fmtA(Ik_min));
+    batLines.push('');
+    batLines.push('=== Time constant (informational only) ===');
+    batLines.push('L_loop = 2 * l\' * L = 2 * ' + lpm + ' uH/m * ' + L + ' m = ' + engRound(L_loop_uH, 3) + ' uH');
+    batLines.push('tau = L_loop / R_loop_max = ' + engRound(L_loop_uH, 3) + ' uH / ' + fmtO(Rloop_max) + ' = ' + engRound(tau_ms, 3) + ' ms');
+    batLines.push('95% of Ik_max reached in ~3*tau = ' + engRound(tau3_ms, 3) + ' ms');
+    batLines.push('');
+    batLines.push('=== Trip verification ===');
+    batLines.push('Device: ' + devType.toUpperCase() + '   In = ' + In + ' A   Curve: ' + curveLabel);
+    batLines.push('May trip above:        ' + tripLo.toFixed(0) + ' A');
+    batLines.push('Guaranteed trip above: ' + tripHi.toFixed(0) + ' A');
+    batLines.push('Ik_min = ' + fmtA(Ik_min) + '   =>   ' + ['NO TRIP', 'UNCERTAIN (transition band)', 'GUARANTEED TRIP'][tripState]);
+    batLines.push('');
+    batLines.push('=== Breaking capacity ===');
+    batLines.push('Ik_max = ' + fmtA(Ik_max) + '   Icu_DC = ' + Icu_kA + ' kA   =>   ' + (exceedsIcu ? 'EXCEEDED!' : (approachingIcu ? 'WARNING: > 80% of Icu_DC' : 'OK')));
+    batLines.push('');
+    batLines.push('=== Maximum cable length (guaranteed trip, worst battery + hot cable) ===');
+    batLines.push('Ztarget = U_oc_min / tripHi = ' + uocMin + ' / ' + tripHi.toFixed(0) + ' = ' + fmtO(Ztarget_bat));
+    batLines.push('R_cable_available = Ztarget - R_int_max = ' + fmtO(Ztarget_bat) + ' - ' + fmtmO(R_int_max) + ' = ' + (Ztarget_bat - R_int_max > 0 ? fmtO(Ztarget_bat - R_int_max) : 'NEGATIVE'));
+    if (L_max > 0) {
+      batLines.push('B = rho_hot * (1/S + 1/Spe) = ' + engRound(rhoHot * (1 / S + 1 / Spe), 4) + ' Ohm/m');
+      batLines.push('L_max = R_cable_available / B = ' + engRound(L_max, 3) + ' m   [actual L = ' + L + ' m => ' + (L > L_max ? 'EXCEEDED' : 'OK') + ']');
+    } else {
+      batLines.push('R_int_max alone exceeds Ztarget — guaranteed trip not achievable regardless of cable length.');
+      batLines.push('Use higher-rated device or increase conductor cross-section.');
+    }
+    batLines.push('');
+    batLines.push('Resistive method. IEC 61660-1 applies to auxiliary DC installations.');
+    batLines.push('Battery R_int values must be verified against manufacturer datasheet at rated conditions.');
+
+    document.getElementById('dc-steps').textContent = batLines.join('\n');
+    document.getElementById('dc-res-card').style.display = 'block';
+    document.getElementById('dc-res-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    window._dcLastResult = {
+      battery: true, smps: false,
+      chem, uocMax, uocMin, rintMinMO, rintMaxMO, R_int_min, R_int_max,
+      batEstimated, batRintSrc, tmin,
+      S, Spe, L, lpm, In, Icu_kA, devType, curveLabel,
+      rhoRef, rhoHot, dcCondTemp, dcMaterial,
+      Rcable_max, Rcable_hot, Rpe_max, Rpe_hot,
+      Rloop_max, Rloop_min, Ik_max, Ik_min,
+      tau_ms, tau3_ms, L_loop_uH,
+      tripState, tripLo, tripHi, exceedsIcu, approachingIcu, L_max,
+      srcStr: 'Battery (' + (CHEM_NAME[chem] || chem) + ') U_oc_max=' + uocMax + 'V R_int_min=' + engRound(rintMinMO, 3) + 'mOhm',
+    };
     return;
   }
 
@@ -1058,6 +1406,9 @@ function dcCalculate() {
   }
 
   // ─── Populate results ────────────────────────────────────────────────────
+  const _rsrcLbl = document.getElementById('dc-r-rsrc-lbl');
+  if (_rsrcLbl) _rsrcLbl.textContent = 'R_source';
+  document.getElementById('dc-bat-warns').style.display = 'none';
   document.getElementById('dc-r-rsrc').textContent   = fmtmOhm(R_source);
   document.getElementById('dc-r-rcable').textContent = fmtmOhm(Rcable_hot);
   document.getElementById('dc-r-rpe').textContent    = fmtmOhm(Rpe_hot);
@@ -1156,7 +1507,7 @@ function dcCalculate() {
   document.getElementById('dc-res-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   window._dcLastResult = {
-    smps: false, U_DC, R_source, S, Spe, L, lpm, In, Icu_kA, devType, curveLabel,
+    battery: false, smps: false, U_DC, R_source, S, Spe, L, lpm, In, Icu_kA, devType, curveLabel,
     rhoRef, rhoHot, dcCondTemp, dcMaterial,
     Rcable_max, Rcable_hot, Rpe_max, Rpe_hot,
     Rloop_max, Rloop_min, Ik_max, Ik_min,
@@ -1254,11 +1605,10 @@ async function dcDownloadPdf() {
 
     const fmtA = v => v >= 1000 ? engRound(v / 1000, 3) + ' kA' : engRound(v, 3) + ' A';
     const fmtmO = v => engRound(v * 1000, 3) + ' mOhm';
+    const PDF_CHEM = { lead_acid: 'Lead-acid (VRLA/AGM/Gel)', lifepo4: 'LiFePO4', nicd: 'NiCd', custom: 'Custom' };
 
     // ── Input rows ──
-    const inputRows = [
-      ['Supply voltage U_DC', r.U_DC + ' V'],
-      ['Source type', r.srcStr || (r.smps ? 'SMPS' : '—')],
+    const _cableRows = [
       ['Conductor material', r.dcMaterial === 'cu' ? 'Copper (Cu)' : 'Aluminium (Al)'],
       ['Temp (max Ik / min Ik)', '20°C / ' + r.dcCondTemp + '°C'],
       ['Phase conductor S', r.S + ' mm2'],
@@ -1269,6 +1619,18 @@ async function dcDownloadPdf() {
       ['Rated current In', r.In + ' A'],
       ['Trip characteristic', pdfSafe(r.curveLabel)],
       ['DC breaking capacity Icu', r.Icu_kA + ' kA'],
+    ];
+    const inputRows = r.battery ? [
+      ['Source type', 'Battery (' + pdfSafe(PDF_CHEM[r.chem] || r.chem) + ')'],
+      ['U_oc_max (100% SoC)', r.uocMax + ' V'],
+      ['U_oc_min (min. SoC)', r.uocMin + ' V'],
+      ['R_int_min (' + r.batRintSrc + ')', engRound(r.rintMinMO, 3) + ' mOhm'],
+      ['R_int_max (' + r.batRintSrc + ')', engRound(r.rintMaxMO, 3) + ' mOhm'],
+      ..._cableRows,
+    ] : [
+      ['Supply voltage U_DC', r.U_DC + ' V'],
+      ['Source type', r.srcStr || (r.smps ? 'SMPS' : '—')],
+      ..._cableRows,
     ];
 
     const TOTAL_PAGES = 2;
@@ -1291,7 +1653,12 @@ async function dcDownloadPdf() {
     } else {
       // Resistance bar
       const impH = 14, colW4 = CW / 4;
-      const impItems = [
+      const impItems = r.battery ? [
+        ['R_int_min / R_int_max', pdfSafe(engRound(r.rintMinMO, 3) + ' / ' + engRound(r.rintMaxMO, 3) + ' mOhm')],
+        ['Rcable (hot)', fmtmO(r.Rcable_hot)],
+        ['Rpe (hot)', fmtmO(r.Rpe_hot)],
+        ['Rloop_min (worst)', fmtmO(r.Rloop_min)],
+      ] : [
         ['R_source', fmtmO(r.R_source)],
         ['Rcable (hot)', fmtmO(r.Rcable_hot)],
         ['Rpe (hot)', fmtmO(r.Rpe_hot)],
@@ -1312,8 +1679,8 @@ async function dcDownloadPdf() {
       // Ik + tau cards (4 cols)
       const cardW = CW / 2, cardH = 24;
       [
-        { lbl: 'Ik_max (cold, 20°C)', val: fmtA(r.Ik_max), hl: false },
-        { lbl: 'Ik_min (hot, ' + r.dcCondTemp + '°C)', val: fmtA(r.Ik_min), hl: true },
+        { lbl: r.battery ? 'Ik_max (U_oc_max, R_int_min, 20°C)' : 'Ik_max (cold, 20°C)', val: fmtA(r.Ik_max), hl: false },
+        { lbl: r.battery ? 'Ik_min (U_oc_min, R_int_max, ' + r.dcCondTemp + '°C)' : 'Ik_min (hot, ' + r.dcCondTemp + '°C)', val: fmtA(r.Ik_min), hl: true },
       ].forEach((f, i) => {
         const cx = M + i * cardW;
         if (f.hl) { doc.setFillColor(235, 244, 252); doc.setDrawColor(...ACC); doc.setLineWidth(0.5); }
@@ -1377,6 +1744,20 @@ async function dcDownloadPdf() {
         doc.text(pdfSafe('WARNING: Ik_max = ' + fmtA(r.Ik_max) + ' > Icu_DC = ' + r.Icu_kA + ' kA — DC BREAKING CAPACITY EXCEEDED'), PW/2, y+6.5, {align:'center',maxWidth:CW-6});
         y += 12;
       }
+      // Battery warnings
+      if (r.battery) {
+        const batWarnPdf = [];
+        batWarnPdf.push('Battery R_int increases with age (lead-acid: up to 2x at end of life). Re-verify after replacement.');
+        if (r.batEstimated) batWarnPdf.push('Estimated R_int used — verify against datasheet or measure with impedance tester.');
+        if (r.chem === 'lead_acid' && !isNaN(r.tmin) && r.tmin < 0) batWarnPdf.push('Sub-zero T_min: lead-acid R_int may exceed estimate. Consider heated enclosure.');
+        if (r.Ik_max > 500) batWarnPdf.push('Ik_max > 500 A — verify DC Icu rating of protective device includes battery contribution.');
+        const wH = 5 + batWarnPdf.length * 5;
+        doc.setFillColor(255,245,220); doc.setDrawColor(200,130,0); doc.setLineWidth(0.4);
+        doc.rect(M, y, CW, wH, 'FD');
+        doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(160,100,0);
+        batWarnPdf.forEach((ln, i) => doc.text(pdfSafe((i === 0 ? 'Battery: ' : '') + ln), M+3, y + 5 + i * 5, {maxWidth: CW-6}));
+        y += wH + 2;
+      }
       // L_max
       const mlOk = r.L_max > 0 && r.L <= r.L_max;
       doc.setFillColor(245,247,250); doc.setDrawColor(200,210,225); doc.setLineWidth(0.2);
@@ -1384,7 +1765,7 @@ async function dcDownloadPdf() {
       doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80,80,80);
       doc.text('Max. cable length (guaranteed trip):', M+3, y+6.5);
       doc.setFont('helvetica','bold'); doc.setTextColor(mlOk?0:180, mlOk?160:100, mlOk?80:0);
-      doc.text(r.L_max > 0 ? engRound(r.L_max, 3) + ' m' : 'N/A', M+CW-3, y+6.5, {align:'right'});
+      doc.text(r.L_max > 0 ? engRound(r.L_max, 3) + ' m' : (r.L_max === -2 ? 'Not achievable' : 'N/A'), M+CW-3, y+6.5, {align:'right'});
       y += 10;
     }
 
