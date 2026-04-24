@@ -30,9 +30,9 @@ function showToast(msg, ms = 2000) {
 
 function toggleTheme() {
   const root = document.documentElement;
-  const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  const checkbox = document.getElementById('themeToggle');
+  const next = checkbox.checked ? 'dark' : 'light';
   root.setAttribute('data-theme', next);
-  document.getElementById('btnTheme').textContent = next === 'light' ? '🌙' : '☀';
   localStorage.setItem('theme', next);
 }
 
@@ -47,7 +47,7 @@ document.getElementById('sb-mode-mm2').classList.add('active');
 // Restore saved theme
 const _savedTheme = localStorage.getItem('theme') || 'dark';
 if (_savedTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
-document.getElementById('btnTheme').textContent = _savedTheme === 'light' ? '🌙' : '☀';
+document.getElementById('themeToggle').checked = _savedTheme === 'dark';
 // Restore saved language or use default
 const _savedLang = localStorage.getItem('language') || 'eng';
 // Apply default language (updates all data-t elements)
