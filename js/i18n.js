@@ -441,4 +441,4 @@ const T = {
   }
 };
 
-let lang = 'cze';
+let lang = 'eng';

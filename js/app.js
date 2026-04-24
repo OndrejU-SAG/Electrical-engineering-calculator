@@ -28,6 +28,14 @@ function showToast(msg, ms = 2000) {
   clearTimeout(t._t); t._t = setTimeout(() => t.style.opacity = '0', ms);
 }
 
+function toggleTheme() {
+  const root = document.documentElement;
+  const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  root.setAttribute('data-theme', next);
+  document.getElementById('btnTheme').textContent = next === 'light' ? '🌙' : '☀';
+  localStorage.setItem('theme', next);
+}
+
 // Init
 document.getElementById('voltage').value = 24;
 buildRefTable();
@@ -35,5 +43,10 @@ initSwitchboard();
 initShortCircuit();
 initDcCalculator();
 initMotorCalc();
-// Set default conductor mode button state
 document.getElementById('sb-mode-mm2').classList.add('active');
+// Restore saved theme
+const _savedTheme = localStorage.getItem('theme') || 'dark';
+if (_savedTheme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+document.getElementById('btnTheme').textContent = _savedTheme === 'light' ? '🌙' : '☀';
+// Apply default language (updates all data-t elements)
+setLang('eng');

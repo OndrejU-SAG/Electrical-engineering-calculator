@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kalkulátor průřezu vodiče</title>
+<title>Wire Size Calculator</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -16,9 +16,10 @@
     <div class="app-bar-sub" data-t="appSub">Měď · IEC 60228 · Úbytek napětí + Zatížitelnost</div>
   </div>
   <div class="lang-seg">
-    <button id="btnCze" class="lang-b active" onclick="setLang('cze')">CZ</button>
-    <button id="btnEng" class="lang-b" onclick="setLang('eng')">EN</button>
+    <button id="btnCze" class="lang-b" onclick="setLang('cze')">CZ</button>
+    <button id="btnEng" class="lang-b active" onclick="setLang('eng')">EN</button>
   </div>
+  <button id="btnTheme" class="theme-btn" onclick="toggleTheme()">☀</button>
 </div>
 
 <div class="tab-bar">
