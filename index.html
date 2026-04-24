@@ -39,6 +39,7 @@
   <button class="tab" onclick="switchTab(2)" data-t="tab2">Oteplení rozvaděče</button>
   <button class="tab" onclick="switchTab(3)" data-t="tab3">Zkratový proud</button>
   <button class="tab" onclick="switchTab(4)" data-t="tab4">Rozběh motoru</button>
+  <button class="tab" onclick="switchTab(5)" data-t="tab5">Cable Tray Fill</button>
 </div>
 
 <!-- TAB 0 -->
@@ -1079,6 +1080,162 @@
 
 </div></div>
 
+<!-- TAB 5 — Cable Tray / Conduit Fill -->
+<div id="pane5" class="tab-pane"><div class="content">
+
+  <!-- Geometry -->
+  <div class="card">
+    <div class="card-hdr" data-t="tray_geomHdr">📐 Tray / Conduit Geometry</div>
+    <div class="seg-group">
+      <button class="seg-btn active" onclick="traySetGeomMode(this,'rect')" data-t="tray_geomRect">Rectangular (cable tray)</button>
+      <button class="seg-btn" onclick="traySetGeomMode(this,'circ')" data-t="tray_geomCirc">Circular / Oval (conduit)</button>
+    </div>
+
+    <!-- Rectangular inputs -->
+    <div id="tray-rect-inputs">
+      <div class="fld" style="margin-bottom:12px">
+        <label data-t="tray_trayType">Tray type</label>
+        <div class="seg-group" style="margin-bottom:0">
+          <button class="seg-btn active" onclick="traySetTrayType(this,'ladder')" data-t="tray_typeLadder">Ladder</button>
+          <button class="seg-btn" onclick="traySetTrayType(this,'perf')" data-t="tray_typePerf">Perforated</button>
+          <button class="seg-btn" onclick="traySetTrayType(this,'solid')" data-t="tray_typeSolid">Solid bottom</button>
+          <button class="seg-btn" onclick="traySetTrayType(this,'wire')" data-t="tray_typeWire">Wire mesh</button>
+        </div>
+      </div>
+      <div class="row c2">
+        <div class="fld">
+          <label data-t="tray_width">Width (mm)</label>
+          <div class="fld-inner"><input type="number" id="tray-width" value="300" min="1"><span class="fld-unit">mm</span></div>
+        </div>
+        <div class="fld">
+          <label data-t="tray_height">Height (mm)</label>
+          <div class="fld-inner"><input type="number" id="tray-height" value="60" min="1"><span class="fld-unit">mm</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Circular / Oval inputs -->
+    <div id="tray-circ-inputs" style="display:none">
+      <div class="fld" style="margin-bottom:12px">
+        <label data-t="tray_conduitType">Conduit type</label>
+        <div class="seg-group" style="margin-bottom:0">
+          <button class="seg-btn active" onclick="traySetConduitType(this,'round')" data-t="tray_typeRound">Round (EMT/PVC)</button>
+          <button class="seg-btn" onclick="traySetConduitType(this,'oval')" data-t="tray_typeOval">Oval</button>
+        </div>
+      </div>
+      <div id="tray-round-inputs">
+        <div class="fld">
+          <label data-t="tray_diameter">Inner diameter (mm)</label>
+          <div class="fld-inner"><input type="number" id="tray-diameter" value="50" min="1"><span class="fld-unit">mm</span></div>
+        </div>
+      </div>
+      <div id="tray-oval-inputs" style="display:none">
+        <div class="row c2">
+          <div class="fld">
+            <label data-t="tray_ovalWidth">Width (mm)</label>
+            <div class="fld-inner"><input type="number" id="tray-oval-w" value="50" min="1"><span class="fld-unit">mm</span></div>
+          </div>
+          <div class="fld">
+            <label data-t="tray_ovalHeight">Height (mm)</label>
+            <div class="fld-inner"><input type="number" id="tray-oval-h" value="30" min="1"><span class="fld-unit">mm</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Standard toggle -->
+  <div class="card">
+    <div class="card-hdr" data-t="tray_standardHdr">📋 Fill Standard</div>
+    <div class="seg-group" style="margin-bottom:0">
+      <button class="seg-btn active" onclick="traySetStandard(this,'iec')" data-t="tray_stdIec">IEC 60364-5-52</button>
+      <button class="seg-btn" onclick="traySetStandard(this,'nec')" data-t="tray_stdNec">NEC 392 / 358</button>
+    </div>
+    <div class="fld-hint" style="margin-top:8px;white-space:normal;line-height:1.5">
+      1 cable: 53% · 2 cables: 31% · 3+ power: 40% · 3+ control/signal: 50% · mixed: 40%
+    </div>
+  </div>
+
+  <!-- Cable table -->
+  <div class="card">
+    <div class="card-hdr" data-t="tray_cableTableHdr">🔌 Cables</div>
+    <div class="sb-tbl-wrap">
+      <table class="sb-tbl">
+        <thead><tr>
+          <th data-t="tray_colInput">Input</th>
+          <th data-t="tray_colDiameter">Size</th>
+          <th data-t="tray_colCount">Count</th>
+          <th data-t="tray_colType">Type</th>
+          <th data-t="tray_colArea">Area [mm²]</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="tray-cable-body"></tbody>
+      </table>
+    </div>
+    <button class="sb-add-btn" onclick="trayAddRow()" data-t="tray_addRow">＋ Add cable</button>
+    <div id="tray-err" class="err-box"></div>
+    <button class="btn-primary" onclick="trayCalculate()" data-t="tray_calcBtn">📐 Calculate Fill</button>
+  </div>
+
+  <!-- Results -->
+  <div class="sb-res-card" id="tray-res-card">
+    <div class="res-lbl" data-t="tray_resTitle">Results — Cable Tray Fill</div>
+
+    <!-- Visual fill bar with limit marker -->
+    <div style="position:relative;margin:10px 0 14px">
+      <div class="tray-fill-bar-wrap">
+        <div class="tray-fill-bar" id="tray-fill-bar"></div>
+      </div>
+      <div id="tray-fill-limit-marker"></div>
+    </div>
+
+    <div class="sb-res-box">
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resFillPct">Fill %</span>
+        <span class="sb-res-value" id="tray-r-fill-pct" style="font-size:20px">—</span>
+      </div>
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resCableArea">Cable area</span>
+        <span class="sb-res-value" id="tray-r-cable-area">—</span>
+      </div>
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resTrayArea">Tray usable area</span>
+        <span class="sb-res-value" id="tray-r-tray-area">—</span>
+      </div>
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resRemaining">Remaining capacity</span>
+        <span class="sb-res-value" id="tray-r-remaining">—</span>
+      </div>
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resAdditional">Additional cables</span>
+        <span class="sb-res-value" id="tray-r-additional" style="font-size:13px">—</span>
+      </div>
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resLimit">Fill limit</span>
+        <span class="sb-res-value" id="tray-r-limit">—</span>
+      </div>
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resRule">Applied rule</span>
+        <span class="sb-res-value" id="tray-r-rule" style="font-size:12px;text-align:right;flex:1;padding-left:8px">—</span>
+      </div>
+      <div class="sb-res-row">
+        <span class="sb-res-label" data-t="tray_resStatus">Status</span>
+        <span id="tray-r-status" class="sb-status-badge green">—</span>
+      </div>
+    </div>
+
+    <!-- Applied rule info line -->
+    <div class="note-bar" id="tray-rule-info" style="margin-top:8px"></div>
+
+    <!-- Warnings -->
+    <div class="warn-chip" id="tray-stack-warn" data-t="tray_warnStack" style="display:none;margin-top:8px">⚠ Estimated stack height exceeds tray height</div>
+    <div class="warn-chip" id="tray-mixed-warn" data-t="tray_warnMixed" style="display:none;margin-top:8px">⚠ Mixed cable types — stricter 40% rule applies</div>
+
+    <button class="btn-primary" onclick="trayDownloadPdf()" style="margin-top:12px" data-t="tray_pdfBtn">⬇ Download PDF</button>
+  </div>
+
+</div></div>
+
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1089,6 +1246,7 @@
 <script src="js/switchboard.js"></script>
 <script src="js/sc.js"></script>
 <script src="js/motor.js"></script>
+<script src="js/tray.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

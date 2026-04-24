@@ -276,6 +276,11 @@ option{background:#1C262A;color:var(--on-surf)}
 .sc-subtab.active{background:var(--sec-con);color:var(--on-sec-con);font-weight:600}
 .sc-subtab:hover:not(.active){background:rgba(126,205,233,.08)}
 
+/* Cable Tray Fill tab */
+.tray-fill-bar-wrap{background:var(--out-var);border-radius:5px;height:10px;overflow:hidden}
+.tray-fill-bar{height:10px;border-radius:5px;width:0%;transition:width .45s cubic-bezier(.4,0,.2,1),background .3s}
+#tray-fill-limit-marker{position:absolute;top:0;width:2px;height:10px;background:rgba(255,165,0,.85);border-radius:1px;pointer-events:none;transform:translateX(-50%)}
+
 @media(max-width:500px){
   .row.c2,.row.c3,.con-grid,.vd-grid,.conv-res,.ref-grid{grid-template-columns:1fr}
   .len-row{grid-template-columns:1fr}

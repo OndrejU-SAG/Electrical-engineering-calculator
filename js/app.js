@@ -14,6 +14,7 @@ function setLang(l) {
   onHChange(); liveWarn();
   buildRefTable();
   if (typeof scRefreshHints === 'function') scRefreshHints();
+  if (typeof trayRenderRows === 'function') trayRenderRows();
   localStorage.setItem('language', l);
 }
 
@@ -43,12 +44,16 @@ initSwitchboard();
 initShortCircuit();
 initDcCalculator();
 initMotorCalc();
+initTray();
 document.getElementById('sb-mode-mm2').classList.add('active');
 // Restore saved theme
 const _savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', _savedTheme);
 document.getElementById('themeToggle').checked = _savedTheme === 'dark';
-// Restore saved language or use default
-const _savedLang = localStorage.getItem('language') || 'eng';
-// Apply default language (updates all data-t elements)
+// Restore saved language, fall back to browser locale, then 'eng'
+const _storedLang = localStorage.getItem('language');
+const _validLangs = ['cze', 'eng'];
+const _browserLang = navigator.language && navigator.language.startsWith('cs') ? 'cze' : 'eng';
+const _savedLang = (_storedLang && _validLangs.includes(_storedLang)) ? _storedLang : _browserLang;
+// Apply language (updates all data-t elements and persists the choice)
 setLang(_savedLang);
