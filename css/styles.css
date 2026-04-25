@@ -199,7 +199,7 @@ input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;bac
 .swap-btn:active{transform:rotate(180deg) scale(.95);box-shadow:0 1px 4px rgba(0,0,0,.2);}
 .conv-res{display:none;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
 .conv-res-item{background:var(--surf-2);border:1px solid var(--out-var);border-radius:var(--r-lg);padding:14px;text-align:center}
-.conv-res-item.hl{border-color:var(--pri-con);background:var(--surf-3)}
+.conv-res-item.hl{border-color:var(--pri);background:var(--pri-a);box-shadow:0 0 8px var(--pri-glow)}
 .conv-res-lbl{font-size:10px;font-weight:700;color:var(--on-surf-var);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
 .conv-res-val{font-size:17px;font-weight:700;color:var(--pri);font-family:'Roboto Mono',monospace;word-break:break-all}
 .conv-res-sub{font-size:10.5px;color:var(--on-surf-var);margin-top:4px}
