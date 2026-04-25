@@ -276,66 +276,107 @@ function scOnUpTypeChange() {
 }
 
 function drawSelectivityAscii(ds, usTripModes, Ik_min_A, Ik_max_A, dsTripLo, dsTripHi, state, I_sel) {
-  const W = 54; // bar width (characters)
+  const W = 56; // bar width (characters)
 
-  // Compute axis bounds (log scale anchored at log10(a) / log10(maxA))
-  const usMaxFinite = usTripModes.reduce((m, u) => Math.max(m, isFinite(u.hi) ? u.hi : 0), 0);
-  const maxA = Math.max(Ik_max_A * 1.15, usMaxFinite * 1.15, dsTripHi * 1.5, 500);
+  // Collect all finite values to set a meaningful log-scale axis range
+  const usLos = usTripModes.map(m => m.lo).filter(v => v > 0);
+  const usMaxF = usTripModes.reduce((m, u) => Math.max(m, isFinite(u.hi) ? u.hi : 0), 0);
+  const allVals = [dsTripLo, dsTripHi, Ik_min_A, Ik_max_A, ...usLos, usMaxF].filter(v => v > 0);
+  const dataMin = allVals.length ? Math.min(...allVals) : 10;
+  const dataMax = allVals.length ? Math.max(...allVals) : 10000;
+
+  const logMin = Math.log10(Math.max(dataMin * 0.3, 1));
+  const logMax = Math.log10(dataMax * 1.4);
 
   const pos = a => {
     if (!isFinite(a) || a <= 0) return W - 1;
-    const lv = Math.log10(Math.max(a, 1)) / Math.log10(maxA);
+    const lv = (Math.log10(Math.max(a, Math.pow(10, logMin))) - logMin) / (logMax - logMin);
     return Math.min(W - 1, Math.max(0, Math.round(lv * (W - 1))));
   };
 
   const fmtA = v => v >= 1000 ? (v / 1000).toFixed(1) + ' kA' : Math.round(v) + ' A';
+
+  // Determine tick marks at standard decades/half-decades within the axis range
+  const TICKS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
+  const minVal = Math.pow(10, logMin);
+  const maxVal = Math.pow(10, logMax);
+  const ticksInRange = TICKS.filter(t => t >= minVal * 0.9 && t <= maxVal * 1.1 && pos(t) < W);
+
+  // Build axis line: dashes with '|' at tick positions
+  const axisArr = Array(W).fill('-');
+  ticksInRange.forEach(t => { const p = pos(t); if (p >= 0 && p < W) axisArr[p] = '|'; });
+  const axisStr = axisArr.join('');
+
+  // Build tick label row (9-char prefix + 1 border = column 10 is bar[0])
+  const PRE = 9;
+  const lblLine = Array(PRE + 1 + W + 10).fill(' ');
+  let lastLblEnd = 0;
+  ticksInRange.forEach(t => {
+    const p = pos(t);
+    const lbl = fmtA(t);
+    const center = PRE + 1 + p;
+    const start = center - Math.floor(lbl.length / 2);
+    if (start >= lastLblEnd) {
+      for (let c = 0; c < lbl.length; c++) {
+        const idx = start + c;
+        if (idx >= 0 && idx < lblLine.length) lblLine[idx] = lbl[c];
+      }
+      lastLblEnd = start + lbl.length + 1;
+    }
+  });
+
+  // Solid bar (no Ik markers — they have their own dedicated row)
+  const makeBar = (lo, hi, ch) => {
+    let s = '';
+    for (let i = 0; i < W; i++) s += (i >= lo && i <= hi) ? ch : ' ';
+    return s;
+  };
+
+  // Ik range bar: [ at min, = inside, ] at max (readable bracket notation)
+  const makeIkBar = (lo, hi) => {
+    if (lo === hi) return makeBar(lo, hi, '|');
+    let s = '';
+    for (let i = 0; i < W; i++) {
+      if (i === lo)                 s += '[';
+      else if (i === hi)            s += ']';
+      else if (i > lo && i < hi)   s += '=';
+      else                          s += ' ';
+    }
+    return s;
+  };
 
   const pDsLo  = pos(dsTripLo);
   const pDsHi  = pos(dsTripHi);
   const pIkMin = pos(Ik_min_A);
   const pIkMax = pos(Ik_max_A);
 
-  const fillBar = (lo, hi, ch, altCh, W) => {
-    let s = '';
-    for (let i = 0; i < W; i++) {
-      if (i >= lo && i <= hi)                       s += ch;
-      else if (i === pIkMin || i === pIkMax) s += altCh;
-      else                                          s += ' ';
-    }
-    return s;
-  };
-
   const lines = [];
 
-  // Axis header row
-  const maxLbl  = fmtA(maxA);
-  const hdrPad  = Math.max(0, W - maxLbl.length);
-  lines.push('         ' + '1 A' + ' '.repeat(hdrPad - 3) + maxLbl);
-  lines.push('         +' + '-'.repeat(W) + '+');
+  // Tick label row + top border
+  lines.push(lblLine.join('').trimEnd());
+  lines.push('         +' + axisStr + '+');
 
-  // Downstream trip band
-  const dsBar  = fillBar(pDsLo, pDsHi, '▓', '|', W);
-  const dsLbl  = ds.devType.toUpperCase() + ' ' + ds.In + 'A (' + ds.curveLabel + ')';
-  lines.push('DS  down |' + dsBar + '|  ' + dsLbl);
+  // Downstream trip band (solid fill, no Ik markers)
+  const dsBar = makeBar(pDsLo, pDsHi, '▓');
+  lines.push('DS  down |' + dsBar + '|  DS: ' + ds.devType.toUpperCase() + ' ' + ds.In + 'A (' + ds.curveLabel + ')');
 
   // Upstream trip bands (one row per release mode)
   usTripModes.forEach((m, idx) => {
     const uLo = pos(m.lo);
     const uHi = isFinite(m.hi) ? pos(m.hi) : W - 1;
-    const uBar = fillBar(uLo, uHi, '░', '|', W);
+    const uBar = makeBar(uLo, uHi, '░');
     const pfx  = idx === 0 ? 'US    up |' : '         |';
-    lines.push(pfx + uBar + '|  ' + m.name + ': ' + fmtA(m.lo) + (isFinite(m.hi) ? ' … ' + fmtA(m.hi) : '→∞'));
+    const rng  = isFinite(m.hi) ? fmtA(m.lo) + ' … ' + fmtA(m.hi) : fmtA(m.lo) + ' → ∞';
+    lines.push(pfx + uBar + '|  ' + m.name + ': ' + rng);
   });
 
-  // Fault current range
-  let fBar = '';
-  for (let i = 0; i < W; i++) {
-    fBar += (i >= pIkMin && i <= pIkMax) ? '═' : ' ';
-  }
+  // Ik1 fault-current range (bracket bar)
+  const fBar = makeIkBar(pIkMin, pIkMax);
   lines.push('Ik1      |' + fBar + '|  ' + fmtA(Ik_min_A) + ' … ' + fmtA(Ik_max_A));
 
-  lines.push('         +' + '-'.repeat(W) + '+');
-  lines.push('▓ = DS trip zone   ░ = US trip zone   ═ = Ik1 fault range');
+  // Bottom border + legend
+  lines.push('         +' + axisStr + '+');
+  lines.push('▓ = DS trip   ░ = US trip   [=] = Ik1 fault range');
   lines.push('');
 
   const statusLine = state === 2
@@ -1021,10 +1062,10 @@ async function scDownloadPdf() {
       const colW3 = [CW * 0.38, CW * 0.38, CW * 0.24];
       const TH = 7, TD = 6.5;
       const hdrs = ['Device', 'Trip range', 'Ik1 min / max'];
-      // header row
-      doc.setFillColor(230, 238, 248); doc.setDrawColor(170, 190, 215); doc.setLineWidth(0.2);
+      // header row — setFillColor inside loop so setTextColor cannot corrupt it
       let cx = M;
       hdrs.forEach((h, i) => {
+        doc.setFillColor(230, 238, 248); doc.setDrawColor(170, 190, 215); doc.setLineWidth(0.2);
         doc.rect(cx, y, colW3[i], TH, 'FD');
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...ACC);
         doc.text(h, cx + 2, y + 5);
@@ -1035,23 +1076,25 @@ async function scDownloadPdf() {
       const fmtAp = v => v >= 1000 ? (v / 1000).toFixed(2) + ' kA' : Math.round(v) + ' A';
       const selRows = [
         [
-          'DS — ' + sel.dsLabel,
-          fmtAp(sel.dsTripLo) + ' … ' + fmtAp(sel.dsTripHi),
+          'DS - ' + sel.dsLabel,
+          fmtAp(sel.dsTripLo) + ' ... ' + fmtAp(sel.dsTripHi),
           fmtAp(sel.Ik1_min_A) + ' / ' + fmtAp(sel.Ik1_max_A),
         ],
         [
-          'US — ' + sel.usLabel,
-          sel.usTripModes.map(m => m.name + ': ' + fmtAp(m.lo) + (isFinite(m.hi) ? ' … ' + fmtAp(m.hi) : ' → ∞')).join('  |  '),
-          '—',
+          'US - ' + sel.usLabel,
+          sel.usTripModes.map(m => m.name + ': ' + fmtAp(m.lo) + (isFinite(m.hi) ? ' ... ' + fmtAp(m.hi) : ' -> inf')).join(' | '),
+          '-',
         ],
       ];
+      const rowBg = [[248, 250, 252], [240, 244, 250]];
       selRows.forEach((row, ri) => {
-        if (ri % 2 === 0) doc.setFillColor(248, 250, 252); else doc.setFillColor(240, 244, 250);
-        let cx2 = M;
         const rowH = TD + 2;
+        let cx2 = M;
+        // setFillColor per-cell: jsPDF shares non-stroking color with setTextColor,
+        // so fill must be re-set before each rect after any text draw.
         row.forEach((cell, ci) => {
-          doc.rect(cx2, y, colW3[ci], rowH, 'F');
-          doc.setDrawColor(190, 200, 215); doc.rect(cx2, y, colW3[ci], rowH);
+          doc.setFillColor(...rowBg[ri % 2]); doc.setDrawColor(190, 200, 215); doc.setLineWidth(0.2);
+          doc.rect(cx2, y, colW3[ci], rowH, 'FD');
           doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 30, 30);
           doc.text(pdfSafe(cell), cx2 + 2, y + 5.5, { maxWidth: colW3[ci] - 4 });
           cx2 += colW3[ci];
@@ -1064,9 +1107,9 @@ async function scDownloadPdf() {
       y = secTitle(y, 'Trip Characteristic Bands (logarithmic scale)');
       const asciiLines = sel.asciiArt.split('\n');
       const asciiSanitize = s => s
-        .replace(/▓/g, '#').replace(/░/g, '.').replace(/═/g, '=')
-        .replace(/✅/g, '[FULL]').replace(/❌/g, '[NONE]').replace(/⚠/g, '(!)')
-        .replace(/∞/g, 'inf').replace(/…/g, '...');
+        .replace(/▓/g, '#').replace(/░/g, '.')
+        .replace(/→/g, '->').replace(/∞/g, 'inf').replace(/…/g, '...')
+        .replace(/✅/g, '[FULL]').replace(/❌/g, '[NONE]').replace(/⚠/g, '(!)');
       doc.setFontSize(6.8); doc.setFont('courier', 'normal'); doc.setTextColor(30, 30, 30);
       asciiLines.forEach(line => {
         if (y > PH - M - 10) { doc.addPage(); drawHeader(2, TOTAL_PAGES); y = M + 22; }
