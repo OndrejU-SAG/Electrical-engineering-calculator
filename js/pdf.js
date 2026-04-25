@@ -34,6 +34,12 @@ function pdfSafe(s) {
     '≤': '<=',   '≥': '>=',   // ≤ ≥
     'π': 'pi',   '∅': 'OD',   // π ∅
     '√': 'sqrt',                   // √
+    // Dashes and arrows
+    '—': ' - ',  '–': '-',    // em dash, en dash
+    '→': '->',   '−': '-',    // right arrow, minus sign
+    // Status symbols
+    '✓': 'OK',   '⚠': '(!)',  // check mark, warning
+    '✗': 'X',                  // ballot X
   };
   return String(s).replace(/[\s\S]/g, c => {
     if (MAP[c] !== undefined) return MAP[c];
