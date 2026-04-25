@@ -1054,6 +1054,12 @@
   <div class="card">
     <div class="card-hdr" data-t="mscParamsHdr">📐 Parametry motoru</div>
 
+    <!-- Mode toggle -->
+    <div class="seg-group" style="margin-bottom:16px">
+      <button class="seg-btn active" id="msc-mode-vd-btn" onclick="mscSetMode('vd')" data-t="mscModeVdOnly">Jen pokles napětí</button>
+      <button class="seg-btn" id="msc-mode-siz-btn" onclick="mscSetMode('siz')" data-t="mscModeFullSizing">Dimenzování kabelu</button>
+    </div>
+
     <div class="fld" style="margin-bottom:12px">
       <label data-t="mscMethod">Způsob rozběhu</label>
       <div class="fld-inner">
@@ -1099,11 +1105,15 @@
       <div class="fld-hint" data-t="mscCosStartHint">Typicky 0,35–0,5 při rozběhu motoru</div>
     </div>
 
-    <div class="row c3">
+    <!-- Cable section: S selector (VD Only) + L + Material -->
+    <div id="msc-s-field" style="margin-bottom:12px">
       <div class="fld">
         <label data-t="mscS">Průřez kabelu S</label>
         <div class="fld-inner"><select id="msc-s" style="padding-left:9px"></select></div>
       </div>
+    </div>
+
+    <div class="row c2">
       <div class="fld">
         <label data-t="mscL">Délka L (jednosměrně)</label>
         <div class="fld-inner"><input type="number" id="msc-len" value="20" placeholder="např. 50" min="0" step="any"><span class="fld-unit">m</span></div>
@@ -1117,17 +1127,73 @@
       </div>
     </div>
 
-    <div class="fld" style="margin-bottom:12px">
-      <label data-t="mscIk">Zkratový proud přípojnice Ik</label>
-      <div class="fld-inner"><input type="number" id="msc-ik" value="10" min="0.01" step="0.1"><span class="fld-unit">kA</span></div>
-      <div class="fld-hint" data-t="mscIkHint">Z dokumentace DNO nebo výpočtu transformátoru</div>
+    <!-- VD Only: Ik field -->
+    <div id="msc-ik-field" style="margin-bottom:12px">
+      <div class="fld">
+        <label data-t="mscIk">Zkratový proud přípojnice Ik</label>
+        <div class="fld-inner"><input type="number" id="msc-ik" value="10" min="0.01" step="0.1"><span class="fld-unit">kA</span></div>
+        <div class="fld-hint" data-t="mscIkHint">Z dokumentace DNO nebo výpočtu transformátoru</div>
+      </div>
+    </div>
+
+    <!-- Full Cable Sizing extra inputs (hidden by default) -->
+    <div id="msc-siz-inputs" style="display:none">
+      <div class="divider" style="margin:4px 0 14px"></div>
+
+      <div class="row c2" style="margin-bottom:12px">
+        <div class="fld">
+          <label data-t="mscPhases">Zapojení</label>
+          <div class="fld-inner">
+            <select id="msc-phases" style="padding-left:9px;font-size:13px">
+              <option value="ac3" data-t="mscPhasesAc3">Trojfázové (AC3)</option>
+              <option value="ac1" data-t="mscPhasesAc1">Jednofázové (AC1)</option>
+            </select>
+          </div>
+        </div>
+        <div class="fld">
+          <label data-t="mscCableType">Typ kabelu</label>
+          <div class="fld-inner">
+            <select id="msc-cable-type" style="padding-left:9px;font-size:13px">
+              <option value="multi"  data-t="mscCableTypeMulti">Vícevodičový</option>
+              <option value="single" data-t="mscCableTypeSingle">Jednožilový</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="fld" style="margin-bottom:12px">
+        <label data-t="mscInstMethod">Způsob uložení (IEC 60364-5-52)</label>
+        <div class="fld-inner">
+          <select id="msc-inst-method" style="padding-left:9px;font-size:13px">
+            <option value="duct"   data-t="mscInstDuct">Trubka / kanál — metoda B2</option>
+            <option value="free"   data-t="mscInstFreeAir">Volný vzduch — metoda E</option>
+            <option value="burial" data-t="mscInstBurial">Přímý zákop — metoda D1</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row c2" style="margin-bottom:12px">
+        <div class="fld">
+          <label data-t="mscMaxVdRun">Max. pokles napětí — provoz</label>
+          <div class="fld-inner"><input type="number" id="msc-max-vd-run" value="5" min="0.5" max="20" step="0.5"><span class="fld-unit">%</span></div>
+        </div>
+        <div class="fld">
+          <label data-t="mscMaxVdStart">Max. pokles napětí — rozběh</label>
+          <div class="fld-inner"><input type="number" id="msc-max-vd-start" value="15" min="0.5" max="30" step="0.5"><span class="fld-unit">%</span></div>
+        </div>
+      </div>
+
+      <div class="fld" style="margin-bottom:12px">
+        <label data-t="mscEngineer">Jméno projektanta</label>
+        <div class="fld-inner"><input type="text" id="msc-engineer" placeholder="např. Ing. Novák"></div>
+      </div>
     </div>
 
     <div id="msc-err" class="err-box"></div>
-    <button class="btn-primary" onclick="mscCalculate()" data-t="mscCalcBtn">⚡ Vypočítat pokles napětí</button>
+    <button class="btn-primary" id="msc-calc-btn" onclick="mscCalculate()" data-t="mscCalcBtn">⚡ Vypočítat pokles napětí</button>
   </div>
 
-  <!-- Results -->
+  <!-- Results — Voltage Dip Only -->
   <div class="sc-res-card" id="msc-res-card">
     <div class="res-lbl" data-t="mscResTitle">Výsledky — Pokles napětí při rozběhu</div>
 
@@ -1203,6 +1269,51 @@
     <div class="divider" style="margin:14px 0"></div>
     <div class="res-lbl" data-t="mscStepsTitle">Postup výpočtu</div>
     <pre class="sb-steps" id="msc-steps"></pre>
+  </div>
+
+  <!-- Results — Full Cable Sizing -->
+  <div class="sc-res-card" id="msc-siz-res-card">
+    <div class="res-lbl" data-t="mscSizResTitle">Výsledky — Dimenzování motorového kabelu</div>
+
+    <!-- Recommended cable highlight box -->
+    <div class="msc-siz-rec-box" id="msc-siz-rec-box">
+      <div class="msc-siz-rec-label" data-t="mscSizRecommended">Doporučený průřez</div>
+      <div class="msc-siz-rec-value" id="msc-siz-rec-value">—</div>
+      <div class="msc-siz-rec-awg"   id="msc-siz-rec-awg">—</div>
+    </div>
+
+    <!-- Comparison table -->
+    <table class="msc-siz-table">
+      <thead>
+        <tr>
+          <th data-t="mscSizParam">Parametr</th>
+          <th data-t="mscSizValue">Hodnota</th>
+          <th data-t="mscSizLimit">Limit</th>
+          <th data-t="mscSizStatus">Stav</th>
+        </tr>
+      </thead>
+      <tbody id="msc-siz-tbody"></tbody>
+    </table>
+
+    <!-- Assessment -->
+    <div class="sc-trip-box sc-trip-ok" id="msc-siz-trip-box">
+      <div class="sc-trip-status" id="msc-siz-trip-status">—</div>
+      <div class="sc-trip-detail" id="msc-siz-trip-detail">—</div>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="msc-siz-suggestion" id="msc-siz-suggestions" style="display:none"></div>
+
+    <!-- VFD info note -->
+    <div class="msc-siz-vfd-note" id="msc-siz-vfd-note" style="display:none">
+      <span data-t="mscSizVfdNote">ⓘ VFD: pokles napětí při rozběhu je zanedbatelný — měnič omezuje záběrný proud.</span>
+    </div>
+
+    <div class="divider" style="margin:14px 0"></div>
+    <div class="res-lbl" data-t="mscStepsTitle">Postup výpočtu</div>
+    <pre class="sb-steps" id="msc-siz-steps"></pre>
+
+    <button class="btn-primary" onclick="mscDownloadPdf()" data-t="mscPdfBtn" style="margin-top:4px">⬇ Stáhnout PDF</button>
   </div>
 
 </div></div>
