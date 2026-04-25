@@ -325,8 +325,10 @@ function trayCalculate() {
   /* Most common OD by count */
   const mostCommonOd = parseFloat(Object.entries(odCounts).sort((a, b) => b[1] - a[1])[0][0]);
   const commonSingle = Math.PI * Math.pow(mostCommonOd / 2, 2);
-  const remaining    = Math.max(0, (geom.area * activeLimit / 100) - totalCableArea);
-  const additional   = Math.floor(remaining / commonSingle);
+  const remaining         = Math.max(0, (geom.area * activeLimit / 100) - totalCableArea);
+  const voidFactor        = 0.8;
+  const effectiveRemaining = remaining * voidFactor;
+  const additional        = Math.floor(effectiveRemaining / commonSingle);
 
   /* Status */
   let statusClass, statusKey;
@@ -351,7 +353,8 @@ function trayCalculate() {
   document.getElementById('tray-r-cable-area').textContent = totalCableArea.toFixed(0) + ' mm²';
   document.getElementById('tray-r-tray-area').textContent  = geom.area.toFixed(0) + ' mm²';
   document.getElementById('tray-r-remaining').textContent  = remaining.toFixed(0) + ' mm²';
-  document.getElementById('tray-r-additional').textContent = additional + ' × ⌀' + mostCommonOd.toFixed(1) + ' mm';
+  const voidNote = t.tray_additionalVoidNote || '(est. with 20% void reserve)';
+  document.getElementById('tray-r-additional').textContent = additional + ' × ⌀' + mostCommonOd.toFixed(1) + ' mm ' + voidNote;
   document.getElementById('tray-r-limit').textContent      = activeLimit + ' %';
   document.getElementById('tray-r-rule').textContent       = ruleDesc;
 
@@ -380,6 +383,21 @@ function trayCalculate() {
   mixedEl.style.display = mixed ? 'flex' : 'none';
   if (mixed) mixedEl.textContent = t.tray_warnMixed || '⚠ Mixed cable types — stricter 40% rule applies';
 
+  const mixedSepEl = document.getElementById('tray-mixed-separation-warn');
+  mixedSepEl.style.display = mixed ? 'flex' : 'none';
+  if (mixed) {
+    mixedSepEl.textContent = t.tray_warnMixedSeparation ||
+      '⚠ Per IEC 60364-5-52, power cables and control/signal/communication cables should be physically separated (e.g. by divider or separate trays) to prevent electromagnetic interference.';
+  }
+
+  const iecTrayDisclaimer = (_trayGeomMode === 'rect' && _trayStandard === 'iec');
+  const iecDisclEl = document.getElementById('tray-iec-tray-disclaimer');
+  iecDisclEl.style.display = iecTrayDisclaimer ? 'flex' : 'none';
+  if (iecTrayDisclaimer) {
+    iecDisclEl.textContent = t.tray_iecTrayDisclaimer ||
+      'ℹ IEC 60364-5-52 Annex B defines percentage fill limits for conduit systems. Applying these limits to cable trays is conservative engineering practice, not a direct normative requirement.';
+  }
+
   /* Rule info line */
   document.getElementById('tray-rule-info').textContent =
     activeLimit + '% — ' + standardName + ' — ' + ruleDesc +
@@ -390,7 +408,7 @@ function trayCalculate() {
     fillPct, totalCableArea, trayArea: geom.area, remaining, activeLimit,
     ruleKey, ruleDesc, standardName, statusClass, statusKey,
     additional, mostCommonOd, totalCount, types: [...types],
-    stackWarn, worstCaseStackHeight, mixed, necSolidNote,
+    stackWarn, worstCaseStackHeight, mixed, necSolidNote, iecTrayDisclaimer,
     geomMode: _trayGeomMode, trayType: _trayTrayType, conduitType: _trayConduitType, geom
   };
 }
@@ -470,14 +488,16 @@ function _trayBuildSteps(r) {
       : 'OK — within limit (' + r.fillPct.toFixed(1) + '% <= ' + r.activeLimit + '%)';
   lines.push(step++ + '. Assessment:\n   ' + verdict);
 
-  // Step 7 — Remaining capacity
-  const allowedArea = r.trayArea * r.activeLimit / 100;
+  // Step 7 — Remaining capacity (with 20% void reserve on additional count)
+  const allowedArea  = r.trayArea * r.activeLimit / 100;
+  const effectiveRem = r.remaining * 0.8;
   lines.push(
-    step++ + '. Remaining capacity at limit:\n' +
+    step++ + '. Remaining capacity at limit (with 20% void reserve):\n' +
     '   A_free = A_tray x Limit% - A_cables\n' +
     '   A_free = ' + r.trayArea.toFixed(1) + ' x ' + r.activeLimit + '% - ' + r.totalCableArea.toFixed(1) + '\n' +
     '   A_free = ' + allowedArea.toFixed(1) + ' - ' + r.totalCableArea.toFixed(1) + ' = ' + r.remaining.toFixed(1) + ' mm^2\n' +
-    '   Additional cables (OD ' + r.mostCommonOd.toFixed(1) + ' mm, most common): ' + r.additional
+    '   Effective remaining (void factor 0.8) = ' + r.remaining.toFixed(1) + ' x 0.8 = ' + effectiveRem.toFixed(1) + ' mm^2\n' +
+    '   Additional cables (OD ' + r.mostCommonOd.toFixed(1) + ' mm, most common, est. w/ 20% reserve): ' + r.additional
   );
 
   return lines;
@@ -622,7 +642,7 @@ function trayDownloadPdf() {
   kv('Fill percentage',    r.fillPct.toFixed(1) + ' %');
   kv('Fill limit',         r.activeLimit + ' %');
   kv('Remaining capacity', r.remaining.toFixed(0) + ' mm^2');
-  kv('Additional cables (most common OD)', r.additional + ' x OD ' + r.mostCommonOd.toFixed(1) + ' mm');
+  kv('Additional cables (most common OD, est. 20% void reserve)', r.additional + ' x OD ' + r.mostCommonOd.toFixed(1) + ' mm');
   y += 3;
 
   /* Status box */
@@ -643,7 +663,7 @@ function trayDownloadPdf() {
   y += 20;
 
   /* Warnings */
-  if (r.stackWarn || r.mixed) {
+  if (r.stackWarn || r.mixed || r.iecTrayDisclaimer) {
     if (y > PH - M - 20) { doc.addPage(); drawHeader(_curPage(), 1); y = M + 22; }
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     doc.setTextColor(180, 100, 0);
@@ -654,6 +674,13 @@ function trayDownloadPdf() {
     if (r.mixed) {
       doc.text(pdfSafe('Warning: Mixed cable types (power + other) detected — stricter 40% fill rule applied'), M, y, { maxWidth: CW });
       y += 6;
+      doc.text(pdfSafe('Note: Per IEC 60364-5-52, power cables and control/signal/communication cables should be physically separated (e.g. by divider or separate trays) to prevent electromagnetic interference.'), M, y, { maxWidth: CW });
+      y += 10;
+    }
+    if (r.iecTrayDisclaimer) {
+      doc.setTextColor(26, 82, 118);
+      doc.text(pdfSafe('Note: IEC 60364-5-52 Annex B defines fill limits for conduit systems. Applying these limits to cable trays is conservative engineering practice, not a direct normative requirement.'), M, y, { maxWidth: CW });
+      y += 10;
     }
     y += 2;
   }
