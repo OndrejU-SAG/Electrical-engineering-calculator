@@ -42,6 +42,12 @@ function toggleTheme() {
   localStorage.setItem('theme', isChecked ? 'dark' : 'light');
 }
 
+function setColor(c) {
+  document.documentElement.setAttribute('data-color', c);
+  localStorage.setItem('color', c);
+  document.querySelectorAll('.col-dot').forEach(d => d.classList.toggle('active', d.dataset.color === c));
+}
+
 function resetToDefaults() {
   const tabIdx = [...document.querySelectorAll('.tab-pane')]
     .findIndex(p => p.classList.contains('active'));
@@ -175,6 +181,9 @@ document.getElementById('sb-mode-mm2').classList.add('active');
 const _savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', _savedTheme);
 document.getElementById('themeToggle').checked = _savedTheme === 'dark';
+// Restore saved color
+const _savedColor = localStorage.getItem('color') || 'teal';
+setColor(_savedColor);
 // Restore saved language, fall back to browser locale, then 'eng'
 const _storedLang = localStorage.getItem('language');
 const _validLangs = ['cze', 'eng'];
