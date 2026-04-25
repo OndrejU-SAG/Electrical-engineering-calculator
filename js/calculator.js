@@ -1,15 +1,20 @@
 let sysType = 'dc';
+let calcFreq = 50;
 let lastParams = null;
 let lastCalcResult = null; // shared with sc.js for import feature
+
+function setFreq(btn, f) {
+  calcFreq = f;
+  btn.closest('.seg-group').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
 
 function setSystem(btn, t) {
   sysType = t;
   btn.closest('.seg-group').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('voltage').value = SYS_V[t];
-  const freqRow = document.getElementById('freqRow');
-  freqRow.style.display = t !== 'dc' ? 'block' : 'none';
-  if (t !== 'dc') document.getElementById('frequency').value = 50;
+  document.getElementById('freqRow').style.display = t !== 'dc' ? 'block' : 'none';
   liveWarn();
 }
 
@@ -87,7 +92,7 @@ function calculate() {
   const Tm = getTempValue();
   const pct = parseFloat(document.getElementById('vdropPct').value);
   let L = parseFloat(document.getElementById('length').value);
-  const freq = parseFloat(document.getElementById('frequency').value) || 50;
+  const freq = calcFreq;
   const unit = document.getElementById('lenUnit').value, dist = document.getElementById('distType').value, h = getH();
   if ([V, I, Ta, Tm, pct, L].some(isNaN)) return fail(T[lang].errFillAll);
   if (V <= 0 || I <= 0 || L <= 0 || pct <= 0) return fail(T[lang].errPositive);
