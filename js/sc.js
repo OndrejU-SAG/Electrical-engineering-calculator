@@ -257,6 +257,243 @@ function scImportFromCalc() {
   showToast(lang === 'cze' ? 'Importováno z kalkulátoru ✓' : 'Imported from calculator ✓');
 }
 
+// ─── selectivity analysis ─────────────────────────────────────────────────────
+
+function scOnSelCheckChange() {
+  const checked = document.getElementById('sc-sel-check').checked;
+  document.getElementById('sc-sel-upstream-panel').style.display = checked ? 'block' : 'none';
+  if (!checked) {
+    const p = document.getElementById('sc-sel-panel');
+    if (p) p.style.display = 'none';
+  }
+}
+
+function scOnUpTypeChange() {
+  const t = document.getElementById('sc-up-type').value;
+  document.getElementById('sc-sel-mcb-row').style.display  = t === 'mcb'  ? '' : 'none';
+  document.getElementById('sc-sel-mccb-rows').style.display = t === 'mccb' ? '' : 'none';
+  document.getElementById('sc-sel-fuse-hint').style.display = t === 'fuse' ? '' : 'none';
+}
+
+function drawSelectivityAscii(ds, usTripModes, Ik_min_A, Ik_max_A, dsTripLo, dsTripHi, state, I_sel) {
+  const W = 54; // bar width (characters)
+
+  // Compute axis bounds (log scale anchored at log10(a) / log10(maxA))
+  const usMaxFinite = usTripModes.reduce((m, u) => Math.max(m, isFinite(u.hi) ? u.hi : 0), 0);
+  const maxA = Math.max(Ik_max_A * 1.15, usMaxFinite * 1.15, dsTripHi * 1.5, 500);
+
+  const pos = a => {
+    if (!isFinite(a) || a <= 0) return W - 1;
+    const lv = Math.log10(Math.max(a, 1)) / Math.log10(maxA);
+    return Math.min(W - 1, Math.max(0, Math.round(lv * (W - 1))));
+  };
+
+  const fmtA = v => v >= 1000 ? (v / 1000).toFixed(1) + ' kA' : Math.round(v) + ' A';
+
+  const pDsLo  = pos(dsTripLo);
+  const pDsHi  = pos(dsTripHi);
+  const pIkMin = pos(Ik_min_A);
+  const pIkMax = pos(Ik_max_A);
+
+  const fillBar = (lo, hi, ch, altCh, W) => {
+    let s = '';
+    for (let i = 0; i < W; i++) {
+      if (i >= lo && i <= hi)                       s += ch;
+      else if (i === pIkMin || i === pIkMax) s += altCh;
+      else                                          s += ' ';
+    }
+    return s;
+  };
+
+  const lines = [];
+
+  // Axis header row
+  const maxLbl  = fmtA(maxA);
+  const hdrPad  = Math.max(0, W - maxLbl.length);
+  lines.push('         ' + '1 A' + ' '.repeat(hdrPad - 3) + maxLbl);
+  lines.push('         +' + '-'.repeat(W) + '+');
+
+  // Downstream trip band
+  const dsBar  = fillBar(pDsLo, pDsHi, '▓', '|', W);
+  const dsLbl  = ds.devType.toUpperCase() + ' ' + ds.In + 'A (' + ds.curveLabel + ')';
+  lines.push('DS  down |' + dsBar + '|  ' + dsLbl);
+
+  // Upstream trip bands (one row per release mode)
+  usTripModes.forEach((m, idx) => {
+    const uLo = pos(m.lo);
+    const uHi = isFinite(m.hi) ? pos(m.hi) : W - 1;
+    const uBar = fillBar(uLo, uHi, '░', '|', W);
+    const pfx  = idx === 0 ? 'US    up |' : '         |';
+    lines.push(pfx + uBar + '|  ' + m.name + ': ' + fmtA(m.lo) + (isFinite(m.hi) ? ' … ' + fmtA(m.hi) : '→∞'));
+  });
+
+  // Fault current range
+  let fBar = '';
+  for (let i = 0; i < W; i++) {
+    fBar += (i >= pIkMin && i <= pIkMax) ? '═' : ' ';
+  }
+  lines.push('Ik1      |' + fBar + '|  ' + fmtA(Ik_min_A) + ' … ' + fmtA(Ik_max_A));
+
+  lines.push('         +' + '-'.repeat(W) + '+');
+  lines.push('▓ = DS trip zone   ░ = US trip zone   ═ = Ik1 fault range');
+  lines.push('');
+
+  const statusLine = state === 2
+    ? (T[lang].selFull     || '✅ Full Selectivity')
+    : state === 1
+    ? (T[lang].selPartialPfx || '⚠ Partial — selective up to ') + (I_sel / 1000).toFixed(2) + ' kA'
+    : (T[lang].selNone     || '❌ No Selectivity');
+  lines.push(statusLine);
+
+  return lines.join('\n');
+}
+
+function scAnalyzeSelectivity() {
+  const r = window._scLastResult;
+  const selPanel = document.getElementById('sc-sel-panel');
+
+  if (!r) {
+    if (selPanel) selPanel.style.display = 'none';
+    return;
+  }
+
+  // Downstream device from last result
+  const ds = {
+    devType:    r.devType,
+    In:         r.In,
+    curveLabel: r.curveLabel,
+    tripLo:     r.tripLo,
+    tripHi:     r.tripHi,
+    Ik1_min_A:  r.Ik1_min * 1000,
+    Ik1_max_A:  r.Ik1_max * 1000,
+  };
+  const dsTripLo = ds.tripLo;
+  const dsTripHi = ds.tripHi;
+
+  // Upstream device from UI
+  const usType = document.getElementById('sc-up-type')?.value || 'mcb';
+  const usIn   = parseFloat(document.getElementById('sc-up-in')?.value);
+
+  if (isNaN(usIn) || usIn <= 0) {
+    showToast(T[lang].selErrFill || 'Fill in all upstream device fields.');
+    if (selPanel) selPanel.style.display = 'none';
+    return;
+  }
+
+  let usTripLo = 0, usTripHi = 0, usTripModes = [], usLabel = '';
+
+  if (usType === 'mcb') {
+    const curve = document.getElementById('sc-up-curve')?.value || 'C';
+    usTripLo = usIn * SC_CURVES[curve].min;
+    usTripHi = usIn * SC_CURVES[curve].max;
+    usTripModes.push({ name: 'Magnetic ' + curve + ' ' + usIn + 'A', lo: usTripLo, hi: usTripHi });
+    usLabel = 'MCB ' + SC_CURVES[curve].label + ' ' + usIn + 'A';
+  } else if (usType === 'fuse') {
+    usTripLo = usIn * SC_FUSE_FACTOR;
+    usTripHi = usTripLo;
+    usTripModes.push({ name: 'gG ' + usIn + 'A', lo: usTripLo, hi: usTripHi });
+    usLabel = 'Fuse gG ' + usIn + 'A';
+  } else if (usType === 'mccb') {
+    const Ir  = parseFloat(document.getElementById('sc-up-ir')?.value);
+    const Isd = parseFloat(document.getElementById('sc-up-isd')?.value);
+    const Ii  = parseFloat(document.getElementById('sc-up-ii')?.value);
+    if ([Ir, Isd, Ii].some(v => isNaN(v) || v <= 0)) {
+      showToast(T[lang].selErrFill || 'Fill in all upstream MCCB fields.');
+      if (selPanel) selPanel.style.display = 'none';
+      return;
+    }
+    usTripModes.push({ name: 'L long-delay ' + usIn + 'A', lo: Ir * 1.05, hi: Ir * 1.30 });
+    if (Isd < Ii) usTripModes.push({ name: 'S short-delay', lo: Isd, hi: Ii });
+    usTripModes.push({ name: 'I instantaneous', lo: Ii, hi: Infinity });
+    usTripLo = Ir * 1.05;
+    usTripHi = Ii;
+    usLabel = 'MCCB ' + usIn + 'A (LSI)';
+  }
+
+  // Selectivity evaluation
+  let state = 0, I_sel = 0;
+  const dsTrips = ds.Ik1_min_A >= dsTripHi;
+  if (dsTrips && dsTripHi < usTripLo) {
+    state = 2; I_sel = ds.Ik1_max_A;
+  } else if (dsTrips && dsTripHi < usTripHi) {
+    state = 1; I_sel = Math.min(usTripLo, ds.Ik1_max_A);
+  }
+
+  // ASCII graph
+  const asciiEl = document.getElementById('sc-sel-ascii');
+  if (asciiEl) {
+    asciiEl.textContent = drawSelectivityAscii(
+      ds, usTripModes, ds.Ik1_min_A, ds.Ik1_max_A, dsTripLo, dsTripHi, state, I_sel
+    );
+  }
+
+  // Status box
+  const statusBox  = document.getElementById('sc-sel-status-box');
+  const statusText = document.getElementById('sc-sel-status-text');
+  if (statusBox && statusText) {
+    if (state === 2) {
+      statusBox.className = 'sc-trip-box sc-trip-ok';
+      statusText.textContent = T[lang].selFull || '✅ Full Selectivity';
+    } else if (state === 1) {
+      statusBox.className = 'sc-trip-box sc-trip-partial';
+      statusText.textContent =
+        (T[lang].selPartialPfx || '⚠ Partial — selective up to ') + (I_sel / 1000).toFixed(2) + ' kA';
+    } else {
+      statusBox.className = 'sc-trip-box sc-trip-fail';
+      statusText.textContent = T[lang].selNone || '❌ No Selectivity';
+    }
+  }
+
+  // Comparison table
+  const tbody = document.getElementById('sc-sel-table-body');
+  if (tbody) {
+    const fmtA = v => v >= 1000 ? (v / 1000).toFixed(2) + ' kA' : Math.round(v) + ' A';
+    const fmtRange = (lo, hi) => fmtA(lo) + (lo === hi ? '' : ' … ' + (isFinite(hi) ? fmtA(hi) : '∞'));
+    const usModes = usTripModes.map(m =>
+      m.name + ': ' + fmtRange(m.lo, m.hi)
+    ).join('\n');
+    tbody.innerHTML =
+      '<tr>' +
+        '<td>DS — ' + ds.devType.toUpperCase() + ' ' + ds.In + 'A<br><small>' + ds.curveLabel + '</small></td>' +
+        '<td>' + fmtA(dsTripLo) + ' … ' + fmtA(dsTripHi) + '</td>' +
+        '<td>' + fmtA(ds.Ik1_min_A) + ' / ' + fmtA(ds.Ik1_max_A) + '</td>' +
+      '</tr>' +
+      '<tr>' +
+        '<td>US — ' + usLabel + '</td>' +
+        '<td style="white-space:pre-line">' + usModes + '</td>' +
+        '<td>—</td>' +
+      '</tr>';
+  }
+
+  // Recommendations
+  const recsEl = document.getElementById('sc-sel-recs');
+  if (recsEl) {
+    const recs = [];
+    if (!dsTrips) {
+      recs.push(T[lang].selRecShortCable || 'Reduce cable length or increase conductor cross-section to raise minimum fault current.');
+    }
+    if (state < 2 && usTripLo <= dsTripHi) {
+      recs.push(T[lang].selRecIncreaseUpIn || 'Increase upstream device rated current (In_up) to raise its trip threshold above the downstream trip range.');
+    }
+    if (state < 2 && usType === 'mcb') {
+      recs.push(T[lang].selRecSwitchMccb || 'Replace upstream MCB with MCCB with short-delay (S) release for time-graded selectivity.');
+    }
+    recsEl.innerHTML = recs.length
+      ? recs.map(rec => '<li>' + rec + '</li>').join('')
+      : '<li style="color:var(--on-surf-var)">' + (T[lang].selNoRecs || 'No recommendations — protection is fully selective.') + '</li>';
+  }
+
+  // Store for PDF export
+  window._scLastResult.selectivity = {
+    state, I_sel, dsLabel: ds.devType.toUpperCase() + ' ' + ds.In + 'A (' + ds.curveLabel + ')',
+    usLabel, usTripModes, dsTripLo, dsTripHi,
+    Ik1_min_A: ds.Ik1_min_A, Ik1_max_A: ds.Ik1_max_A,
+    asciiArt: document.getElementById('sc-sel-ascii')?.textContent || '',
+  };
+
+  if (selPanel) selPanel.style.display = 'block';
+}
+
 // ─── main calculation ────────────────────────────────────────────────────────
 
 function scCalculate() {
@@ -563,6 +800,14 @@ function scCalculate() {
     curveSel: isFuse ? 'gG' : curveSel, curveLabel,
     voltModeStr,
   };
+
+  // Selectivity analysis (must run after _scLastResult is set)
+  if (document.getElementById('sc-sel-check')?.checked) {
+    scAnalyzeSelectivity();
+  } else {
+    const sp = document.getElementById('sc-sel-panel');
+    if (sp) sp.style.display = 'none';
+  }
 }
 
 /* ===================================================================
@@ -741,7 +986,7 @@ async function scDownloadPdf() {
     );
 
     // ── PAGE 1: Inputs + Results ──
-    const TOTAL_PAGES = 2;
+    const TOTAL_PAGES = 2; // updated by realTotal at footer-fix loop
     drawHeader(1, TOTAL_PAGES);
     let y = M + 22;
 
@@ -752,7 +997,85 @@ async function scDownloadPdf() {
     y = secTitle(y, 'Results');
     resultsSection(y);
 
-    // ── PAGE 2: Calculations ──
+    // ── PAGE 2 (optional): Selectivity Analysis ──
+    const sel = r.selectivity;
+    if (sel) {
+      doc.addPage();
+      drawHeader(2, TOTAL_PAGES);
+      y = M + 22;
+      y = secTitle(y, 'Selectivity / Discrimination Analysis  (IEC 60898 / IEC 60947-2 / IEC 60269)');
+      y += 2;
+
+      // Selectivity status badge
+      let scol, sbg, sLabel;
+      if (sel.state === 2)      { scol = [0, 160, 80];  sbg = [232, 252, 240]; sLabel = 'FULL SELECTIVITY'; }
+      else if (sel.state === 1) { scol = [180, 120, 0]; sbg = [255, 245, 220]; sLabel = 'PARTIAL SELECTIVITY — up to ' + (sel.I_sel / 1000).toFixed(2) + ' kA'; }
+      else                      { scol = [200, 40, 40]; sbg = [252, 232, 232]; sLabel = 'NO SELECTIVITY'; }
+      doc.setFillColor(...sbg); doc.setDrawColor(...scol); doc.setLineWidth(0.5);
+      doc.rect(M, y, CW, 12, 'FD');
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...scol);
+      doc.text(pdfSafe(sLabel), PW / 2, y + 8, { align: 'center' });
+      y += 12 + 5;
+
+      // Device comparison table
+      const colW3 = [CW * 0.38, CW * 0.38, CW * 0.24];
+      const TH = 7, TD = 6.5;
+      const hdrs = ['Device', 'Trip range', 'Ik1 min / max'];
+      // header row
+      doc.setFillColor(230, 238, 248); doc.setDrawColor(170, 190, 215); doc.setLineWidth(0.2);
+      let cx = M;
+      hdrs.forEach((h, i) => {
+        doc.rect(cx, y, colW3[i], TH, 'FD');
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...ACC);
+        doc.text(h, cx + 2, y + 5);
+        cx += colW3[i];
+      });
+      y += TH;
+
+      const fmtAp = v => v >= 1000 ? (v / 1000).toFixed(2) + ' kA' : Math.round(v) + ' A';
+      const selRows = [
+        [
+          'DS — ' + sel.dsLabel,
+          fmtAp(sel.dsTripLo) + ' … ' + fmtAp(sel.dsTripHi),
+          fmtAp(sel.Ik1_min_A) + ' / ' + fmtAp(sel.Ik1_max_A),
+        ],
+        [
+          'US — ' + sel.usLabel,
+          sel.usTripModes.map(m => m.name + ': ' + fmtAp(m.lo) + (isFinite(m.hi) ? ' … ' + fmtAp(m.hi) : ' → ∞')).join('  |  '),
+          '—',
+        ],
+      ];
+      selRows.forEach((row, ri) => {
+        if (ri % 2 === 0) doc.setFillColor(248, 250, 252); else doc.setFillColor(240, 244, 250);
+        let cx2 = M;
+        const rowH = TD + 2;
+        row.forEach((cell, ci) => {
+          doc.rect(cx2, y, colW3[ci], rowH, 'F');
+          doc.setDrawColor(190, 200, 215); doc.rect(cx2, y, colW3[ci], rowH);
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 30, 30);
+          doc.text(pdfSafe(cell), cx2 + 2, y + 5.5, { maxWidth: colW3[ci] - 4 });
+          cx2 += colW3[ci];
+        });
+        y += rowH;
+      });
+      y += 6;
+
+      // ASCII graph (monospace 7pt) — convert block chars to ASCII for jsPDF ISO Latin-1
+      y = secTitle(y, 'Trip Characteristic Bands (logarithmic scale)');
+      const asciiLines = sel.asciiArt.split('\n');
+      const asciiSanitize = s => s
+        .replace(/▓/g, '#').replace(/░/g, '.').replace(/═/g, '=')
+        .replace(/✅/g, '[FULL]').replace(/❌/g, '[NONE]').replace(/⚠/g, '(!)')
+        .replace(/∞/g, 'inf').replace(/…/g, '...');
+      doc.setFontSize(6.8); doc.setFont('courier', 'normal'); doc.setTextColor(30, 30, 30);
+      asciiLines.forEach(line => {
+        if (y > PH - M - 10) { doc.addPage(); drawHeader(2, TOTAL_PAGES); y = M + 22; }
+        doc.text(pdfSafe(asciiSanitize(line)), M, y);
+        y += 3.5;
+      });
+    }
+
+    // ── Calculations page ──
     doc.addPage();
     drawHeader(2, TOTAL_PAGES);
     y = M + 22;

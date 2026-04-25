@@ -594,6 +594,80 @@
     <button class="btn-primary" onclick="scCalculate()" data-t="scCalcBtn">⚡ Vypočítat zkratový proud</button>
   </div>
 
+  <!-- SELECTIVITY ANALYSIS INPUT -->
+  <div class="card" id="sc-sel-input-card">
+    <div class="sc-sel-check-row">
+      <input type="checkbox" id="sc-sel-check" onchange="scOnSelCheckChange()">
+      <label for="sc-sel-check" data-t="selCheck">Analyzovat selektivitu s nadřazeným přístrojem</label>
+    </div>
+    <div id="sc-sel-upstream-panel" style="display:none;margin-top:14px">
+      <div class="card-hdr" data-t="selUpstreamHdr" style="margin-bottom:12px">⬆ Nadřazený ochranný přístroj</div>
+      <div class="row c2">
+        <div class="fld">
+          <label data-t="selUpType">Typ přístroje (nadřazený)</label>
+          <div class="fld-inner">
+            <select id="sc-up-type" onchange="scOnUpTypeChange()" style="padding-left:9px">
+              <option value="mcb"  data-t="scDevMcb">Jistič (MCB)</option>
+              <option value="mccb" data-t="scDevMccb">Výkonový jistič (MCCB)</option>
+              <option value="fuse" data-t="scDevFuse">Pojistka gG</option>
+            </select>
+          </div>
+        </div>
+        <div class="fld">
+          <label data-t="selUpIn">Jmenovitý proud In_up</label>
+          <div class="fld-inner"><input type="number" id="sc-up-in" value="63" min="0.1" step="any"><span class="fld-unit">A</span></div>
+        </div>
+      </div>
+      <!-- MCB curve row -->
+      <div class="row c2" id="sc-sel-mcb-row">
+        <div class="fld">
+          <label data-t="selUpCurve">Charakteristika (nadřazený)</label>
+          <div class="fld-inner">
+            <select id="sc-up-curve" style="padding-left:9px">
+              <option value="B">B (3–5 × In)</option>
+              <option value="C" selected>C (5–10 × In)</option>
+              <option value="D">D (10–20 × In)</option>
+              <option value="K">K (8–14 × In)</option>
+              <option value="Z">Z (2–3 × In)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <!-- MCCB LSI releases -->
+      <div id="sc-sel-mccb-rows" style="display:none">
+        <div class="row c2">
+          <div class="fld">
+            <label data-t="selMccbIr">Dlouhodobý spouštěcí proud Ir</label>
+            <div class="fld-inner"><input type="number" id="sc-up-ir" value="50" min="0.1" step="any"><span class="fld-unit">A</span></div>
+          </div>
+          <div class="fld">
+            <label data-t="selMccbIsd">Krátkodobý spouštěcí proud Isd</label>
+            <div class="fld-inner"><input type="number" id="sc-up-isd" value="500" min="0.1" step="any"><span class="fld-unit">A</span></div>
+          </div>
+        </div>
+        <div class="row c2">
+          <div class="fld">
+            <label data-t="selMccbTsd">Krátkodobá prodleva tsd</label>
+            <div class="fld-inner">
+              <select id="sc-up-tsd" style="padding-left:9px">
+                <option value="0.1">0.1 s</option>
+                <option value="0.2">0.2 s</option>
+                <option value="0.3">0.3 s</option>
+                <option value="0.4">0.4 s</option>
+              </select>
+            </div>
+          </div>
+          <div class="fld">
+            <label data-t="selMccbIi">Okamžitý spouštěcí proud Ii</label>
+            <div class="fld-inner"><input type="number" id="sc-up-ii" value="5000" min="0.1" step="any"><span class="fld-unit">A</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- Fuse gG label -->
+      <div id="sc-sel-fuse-hint" class="fld-hint" style="display:none;margin-top:6px">gG: I₂ = 1.6 × In_up  (IEC 60269-2) — pevná charakteristika</div>
+    </div>
+  </div>
+
   <!-- RESULTS -->
   <div class="sc-res-card" id="sc-res-card">
     <div class="res-lbl" data-t="scResTitle">Výsledky — Zkratové proudy</div>
@@ -654,6 +728,30 @@
     <div class="divider" style="margin:14px 0"></div>
     <div class="sc-res-sub-lbl" data-t="scResMaxLen">Max. délka kabelu (zaručené vybavení)</div>
     <div class="sc-maxlen-box sc-maxlen-ok" id="sc-maxlen-box">—</div>
+
+    <!-- SELECTIVITY ANALYSIS RESULTS -->
+    <div id="sc-sel-panel" style="display:none">
+      <div class="divider" style="margin:14px 0"></div>
+      <div class="sc-res-sub-lbl" data-t="selHdr">🔀 Analýza selektivity / diskriminace</div>
+      <div class="sc-trip-box sc-trip-ok" id="sc-sel-status-box" style="margin-bottom:12px">
+        <div class="sc-trip-status" id="sc-sel-status-text">—</div>
+      </div>
+      <div class="sc-sel-table-wrap">
+        <table class="sc-sel-table">
+          <thead>
+            <tr>
+              <th data-t="selDevLbl">Přístroj</th>
+              <th data-t="selTripRange">Rozsah vybavení</th>
+              <th data-t="selIkRange">Ik1 min / max</th>
+            </tr>
+          </thead>
+          <tbody id="sc-sel-table-body"></tbody>
+        </table>
+      </div>
+      <pre class="sc-sel-ascii" id="sc-sel-ascii"></pre>
+      <div class="sc-res-sub-lbl" data-t="selRecs" style="margin-top:12px">Doporučení</div>
+      <ul class="sc-sel-recs" id="sc-sel-recs"></ul>
+    </div>
 
     <div class="divider" style="margin:14px 0"></div>
     <div class="sc-res-sub-lbl" data-t="scResAssumptions">Předpoklady výpočtu</div>
