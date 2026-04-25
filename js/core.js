@@ -100,6 +100,7 @@ function fullCalc({ V, I, Tamb, Tmax, pct, Lone, sys, h, freq = 50 }) {
     vdAwg: stdAwgUp(vdMm2), ampAwg: stdAwgUp(ampMm2),
     vdActV, vdActP: vdActV / V * 100, pLoss, wireAmp,
     fuse: suggestFuse(wireAmp), ampLimits: ampStd >= vdStd, rho, Vd,
-    rDC, rAC, ys
+    rDC, rAC, ys,
+    vdDcMm2: vdEx_dc * 1e6, ys0, dT, fEff
   };
 }
