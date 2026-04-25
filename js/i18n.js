@@ -1,6 +1,6 @@
 const T = {
   deu: {
-    appTitle: 'Kabelquerschnittsrechner', appSub: 'Kupfer · IEC 60228 · Spannungsfall + Strombelastbarkeit',
+    appTitle: 'Elektro-Rechner',
     tab0: 'Leiterbemessung', tab2: 'Tabelle',
     sysType: '⚙ Systemtyp', sysAc1: 'AC Einphasig', sysAc3: 'AC Dreiphasig',
     params: '📐 Parameter', srcVoltage: 'Versorgungsspannung', current: 'Strom (Spitze)',
@@ -338,7 +338,7 @@ const T = {
     skinEffectWarn: 'Stromverdrängungseffekt erhöht den Widerstand um {pct} % — im Ergebnis berücksichtigt.',
   },
   cze: {
-    appTitle: 'Kalkulátor průřezu vodiče', appSub: 'Měď · IEC 60228 · Úbytek napětí + Zatížitelnost',
+    appTitle: 'Elektrická kalkulačka',
     tab0: 'Dimenzování vodičů', tab2: '📊 Tabulka',
     sysType: '⚙ Typ systému', sysAc1: 'AC Jednofázové', sysAc3: 'AC Třífázové',
     params: '📐 Parametry', srcVoltage: 'Napájecí napětí', current: 'Proud (špičkový)',
@@ -676,7 +676,7 @@ const T = {
     skinEffectWarn: 'Povrchový jev zvyšuje odpor o {pct} % — zahrnuto ve výpočtu.',
   },
   eng: {
-    appTitle: 'Wire Size Calculator', appSub: 'Copper · IEC 60228 · Voltage Drop + Ampacity',
+    appTitle: 'Electrical Calculator',
     tab0: 'Wire sizing', tab2: '📊 Batch Table',
     sysType: '⚙ System Type', sysAc1: 'AC Single-phase', sysAc3: 'AC Three-phase',
     params: '📐 Parameters', srcVoltage: 'Source Voltage', current: 'Current (Peak)',
