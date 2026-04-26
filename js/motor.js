@@ -86,8 +86,9 @@ function mscCalcVdOnly() {
   const S        = parseFloat(document.getElementById('msc-s').value);
   const L        = parseFloat(document.getElementById('msc-len').value);
   const Ik       = parseFloat(document.getElementById('msc-ik').value);
+  const Tcable   = parseFloat(document.getElementById('msc-cable-temp').value);
 
-  if ([Pn, Un, cosN, eta, cosStart, kstart, S, L, Ik].some(v => isNaN(v) || v <= 0)) {
+  if ([Pn, Un, cosN, eta, cosStart, kstart, S, L, Ik, Tcable].some(v => isNaN(v) || v <= 0)) {
     errEl.textContent = T[lang].errPositive;
     errEl.style.display = 'block';
     return;
@@ -98,12 +99,14 @@ function mscCalcVdOnly() {
     return;
   }
 
-  const rho = MATERIAL[mscMaterial].rho20 * (1 + MATERIAL[mscMaterial].alpha * (70 - 20));
+  const mat      = MATERIAL[mscMaterial];
+  const rho_cold = mat.rho20;                                           // 20 °C — cold cable (starting transient)
+  const rho_run  = mat.rho20 * (1 + mat.alpha * (Tcable - 20));        // at operating temp — IEC 60364-5-52 §G.52.2
 
   const In     = (Pn * 1000) / (Math.sqrt(3) * Un * cosN * eta);
   const Istart = kstart * In;
 
-  const Rcable = rho * L / S * (1 + skinEffectYs(50, rho / S));
+  const Rcable = rho_cold * L / S * (1 + skinEffectYs(50, rho_cold / S));
   const Xcable = 0.08 * L / 1000;
 
   const Zs = Un / (Math.sqrt(3) * Ik * 1000);
@@ -157,10 +160,11 @@ function mscCalcVdOnly() {
 
   const methodSel  = document.getElementById('msc-method');
   const methodName = methodSel.options[methodSel.selectedIndex].text;
-  const matLabel   = (mscMaterial === 'cu' ? 'Cu' : 'Al') + ` (ρ(70 °C) = ${rho.toFixed(5)} Ω·mm²/m)`;
+  const matName    = mscMaterial === 'cu' ? 'Cu' : 'Al';
 
   document.getElementById('msc-steps').textContent =
-`Method: ${methodName}  |  Material: ${matLabel}
+`Method: ${methodName}  |  Material: ${matName}
+Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
 ────────────────────────────────────────────────────────
 1. Rated current
    In = (Pn × 1000) / (√3 × Un × cos φn × η)
@@ -170,21 +174,29 @@ function mscCalcVdOnly() {
 2. Starting current
    Istart = kstart × In = ${kstart} × ${In.toFixed(2)} = ${Istart.toFixed(2)} A
 
-3. Cable impedance  (L = ${L} m one-way, S = ${S} mm², ρ = ${rho} Ω·mm²/m)
-   Rcable = ρ × L / S = ${rho} × ${L} / ${S} = ${Rcable.toFixed(5)} Ω  (${(Rcable*1000).toFixed(3)} mΩ)
+3. Conductor resistivity (IEC 60364-5-52 §G.52.2)
+   ρ(θ) = ρ20 × (1 + α × (θ − 20))
+   ρ_cold (20 °C, starting — cold cable):
+     ρ_cold = ${rho_cold.toFixed(6)} Ω·mm²/m  [used for starting dU]
+   ρ_run  (${Tcable} °C, operating temperature):
+     ρ_run  = ${rho_cold.toFixed(6)} × (1 + ${mat.alpha} × (${Tcable} − 20))
+            = ${rho_run.toFixed(6)} Ω·mm²/m  [reference — no running dU in this mode]
+
+4. Cable impedance  (L = ${L} m one-way, S = ${S} mm², ρ = ρ_cold = ${rho_cold.toFixed(6)} Ω·mm²/m)
+   Rcable = ρ_cold × L / S = ${rho_cold.toFixed(6)} × ${L} / ${S} = ${Rcable.toFixed(5)} Ω  (${(Rcable*1000).toFixed(3)} mΩ)
    Xcable ≈ 0.08 × L / 1000 = ${Xcable.toFixed(5)} Ω  (${(Xcable*1000).toFixed(3)} mΩ)
 
-4. Network impedance at busbar  (Ik = ${Ik} kA, Un = ${Un} V)
+5. Network impedance at busbar  (Ik = ${Ik} kA, Un = ${Un} V)
    Zs = Un / (√3 × Ik × 1000) = ${Un} / (1.7321 × ${Ik} × 1000) = ${Zs.toFixed(5)} Ω  (${(Zs*1000).toFixed(3)} mΩ)
    Rs = Zs × 0.1   = ${Rs.toFixed(5)} Ω  (${(Rs*1000).toFixed(3)} mΩ)
    Xs = Zs × 0.995 = ${Xs.toFixed(5)} Ω  (${(Xs*1000).toFixed(3)} mΩ)
    Note: X/R ≈ 10 decomposition — indicative for MV/LV transformer feeds.
 
-5. Total impedance
+6. Total impedance
    R = Rs + Rcable = ${Rs.toFixed(5)} + ${Rcable.toFixed(5)} = ${R.toFixed(5)} Ω
    X = Xs + Xcable = ${Xs.toFixed(5)} + ${Xcable.toFixed(5)} = ${X.toFixed(5)} Ω
 
-6. Voltage dip  (cos φstart = ${cosStart}, sin φstart = ${sinStart.toFixed(4)})
+7. Voltage dip  (cos φstart = ${cosStart}, sin φstart = ${sinStart.toFixed(4)})
    ΔU = √3 × Istart × (R × cos φstart + X × sin φstart)
    ΔU = 1.7321 × ${Istart.toFixed(2)} × (${R.toFixed(5)} × ${cosStart} + ${X.toFixed(5)} × ${sinStart.toFixed(4)})
    ΔU = ${dU.toFixed(2)} V
@@ -209,12 +221,13 @@ function mscCalcFullSizing() {
   const L          = parseFloat(document.getElementById('msc-len').value);
   const maxVdRun   = parseFloat(document.getElementById('msc-max-vd-run').value);
   const maxVdStart = parseFloat(document.getElementById('msc-max-vd-start').value);
+  const Tcable     = parseFloat(document.getElementById('msc-cable-temp').value);
   const method     = document.getElementById('msc-method').value;
   const cableType  = document.getElementById('msc-cable-type').value;
   const instMethod = document.getElementById('msc-inst-method').value;
   const phases     = document.getElementById('msc-phases').value;
 
-  if ([Pn, Un, cosN, eta, cosStart, kstart, L, maxVdRun, maxVdStart].some(v => isNaN(v) || v <= 0)) {
+  if ([Pn, Un, cosN, eta, cosStart, kstart, L, maxVdRun, maxVdStart, Tcable].some(v => isNaN(v) || v <= 0)) {
     errEl.textContent = T[lang].errPositive;
     errEl.style.display = 'block';
     return;
@@ -225,7 +238,9 @@ function mscCalcFullSizing() {
     return;
   }
 
-  const rho      = MATERIAL[mscMaterial].rho20 * (1 + MATERIAL[mscMaterial].alpha * (70 - 20));
+  const mat      = MATERIAL[mscMaterial];
+  const rho_cold = mat.rho20;                                     // 20 °C — cold cable (starting transient)
+  const rho_run  = mat.rho20 * (1 + mat.alpha * (Tcable - 20));  // at operating temp — IEC 60364-5-52 §G.52.2
   const ampTable = mscMaterial === 'cu' ? IEC_AMP_CU : IEC_AMP_AL;
   const Xkm      = cableType === 'single' ? 0.08 : 0.07;  // Ω/km
   const InFactor = phases === 'ac3' ? Math.sqrt(3) : 1;
@@ -250,11 +265,12 @@ function mscCalcFullSizing() {
     const S  = IEC_SIZ_SIZES[i];
     const Iz = ampTable[instMethod][i];
 
-    const Rcable = rho * L / S * (1 + skinEffectYs(50, rho / S));
-    const Xcable = Xkm * L / 1000;
+    const Rcable_run   = rho_run  * L / S * (1 + skinEffectYs(50, rho_run  / S));
+    const Rcable_start = rho_cold * L / S * (1 + skinEffectYs(50, rho_cold / S));
+    const Xcable       = Xkm * L / 1000;
 
-    const dU_run       = vdFactor * In     * (Rcable * cosN     + Xcable * sinN);
-    const dU_start     = vdFactor * Istart * (Rcable * cosStart + Xcable * sinStart);
+    const dU_run       = vdFactor * In     * (Rcable_run   * cosN     + Xcable * sinN);
+    const dU_start     = vdFactor * Istart * (Rcable_start * cosStart + Xcable * sinStart);
     const dU_run_pct   = (dU_run   / Un) * 100;
     const dU_start_pct = (dU_start / Un) * 100;
 
@@ -262,7 +278,7 @@ function mscCalcFullSizing() {
     const vdRunOk   = dU_run_pct  <= maxVdRun;
     const vdStartOk = method === 'vfd' || dU_start_pct <= maxVdStart;
 
-    const t = { S, Iz, Rcable, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, ampOk, vdRunOk, vdStartOk };
+    const t = { S, Iz, Rcable_run, Rcable_start, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, ampOk, vdRunOk, vdStartOk };
     trials.push(t);
 
     if (!found && ampOk && vdRunOk && vdStartOk) found = t;
@@ -274,6 +290,7 @@ function mscCalcFullSizing() {
 `Method: ${methodName}  |  Material: ${matLabel}  |  System: ${phaseLabel}
 Cable: ${cableType === 'single' ? 'Single-core' : 'Multi-core'} (X = ${Xkm * 1000} mOhm/km)
 Installation: ${instLabel}
+Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
 ────────────────────────────────────────────────────────────────────
 1. Rated current
    In = (Pn * 1000) / (${phases === 'ac3' ? 'sqrt(3) * Un' : 'Un'} * cos(phi_n) * eta)
@@ -285,14 +302,22 @@ Installation: ${instLabel}
    sin(phi_n)     = sqrt(1 - ${cosN}^2) = ${sinN.toFixed(4)}
    sin(phi_start) = sqrt(1 - ${cosStart}^2) = ${sinStart.toFixed(4)}
 
-3. Ampacity table: IEC 60364-5-52, ${instLabel}, ${matLabel}, PVC 70°C, 30°C ambient
+3. Conductor resistivity  rho(theta) = rho20 * (1 + alpha * (theta - 20))
+   rho_cold (20 °C — cold cable, starting transient):
+     rho_cold = ${rho_cold.toFixed(6)} Ohm*mm^2/m  [used for dU_start]
+   rho_run  (${Tcable} °C — cable operating temperature):
+     rho_run  = ${rho_cold.toFixed(6)} * (1 + ${mat.alpha} * (${Tcable} - 20))
+              = ${rho_run.toFixed(6)} Ohm*mm^2/m  [used for dU_run]
 
-4. Iterative sizing — first size satisfying: Iz >= In, dU_run <= ${maxVdRun} %, dU_start <= ${maxVdStart} %
+4. Ampacity table: IEC 60364-5-52, ${instLabel}, ${matLabel}, PVC 70°C, 30°C ambient
+
+5. Iterative sizing — first size satisfying: Iz >= In, dU_run <= ${maxVdRun} %, dU_start <= ${maxVdStart} %
 `;
 
   if (found) {
-    const { S, Iz, Rcable, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, vdRunOk, vdStartOk } = found;
-    const ys = skinEffectYs(50, rho / S);
+    const { S, Iz, Rcable_run, Rcable_start, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, vdRunOk, vdStartOk } = found;
+    const ys_run   = skinEffectYs(50, rho_run  / S);
+    const ys_cold  = skinEffectYs(50, rho_cold / S);
     stepsText +=
 `
    Recommended: ${S} mm²
@@ -303,27 +328,29 @@ Installation: ${instLabel}
       ${Iz} >= ${In.toFixed(3)} A  [OK]
 
    b) Cable impedance for ${S} mm², L = ${L} m
-      rho_AC (skin effect, ys = ${ys.toFixed(6)}) = ${rho} * (1 + ${ys.toFixed(6)}) Ohm*mm^2/m
-      Rcable = rho * L / S * (1 + ys)
-             = ${rho} * ${L} / ${S} * (1 + ${ys.toFixed(6)})
-             = ${Rcable.toFixed(6)} Ohm
+      Rcable_run   = rho_run  * L / S * (1 + ys_run)
+                   = ${rho_run.toFixed(6)} * ${L} / ${S} * (1 + ${ys_run.toFixed(6)})
+                   = ${Rcable_run.toFixed(6)} Ohm  [running — rho at ${Tcable} °C]
+      Rcable_start = rho_cold * L / S * (1 + ys_cold)
+                   = ${rho_cold.toFixed(6)} * ${L} / ${S} * (1 + ${ys_cold.toFixed(6)})
+                   = ${Rcable_start.toFixed(6)} Ohm  [starting — rho at 20 °C]
       Xcable = Xkm * L / 1000 = ${Xkm} * ${L} / 1000 = ${Xcable.toFixed(6)} Ohm
 
-   c) Running voltage drop  (cos phi_n = ${cosN}, sin phi_n = ${sinN.toFixed(4)})
-      dU_run = ${vdFactor.toFixed(4)} * In * (Rcable * cos phi_n + Xcable * sin phi_n)
-             = ${vdFactor.toFixed(4)} * ${In.toFixed(3)} * (${Rcable.toFixed(6)} * ${cosN} + ${Xcable.toFixed(6)} * ${sinN.toFixed(4)})
+   c) Running voltage drop  (rho_run, cos phi_n = ${cosN}, sin phi_n = ${sinN.toFixed(4)})
+      dU_run = ${vdFactor.toFixed(4)} * In * (Rcable_run * cos phi_n + Xcable * sin phi_n)
+             = ${vdFactor.toFixed(4)} * ${In.toFixed(3)} * (${Rcable_run.toFixed(6)} * ${cosN} + ${Xcable.toFixed(6)} * ${sinN.toFixed(4)})
              = ${dU_run.toFixed(3)} V
       dU_run% = ${dU_run.toFixed(3)} / ${Un} * 100 = ${dU_run_pct.toFixed(3)} %
       Limit: <= ${maxVdRun} %  [${vdRunOk ? 'OK' : 'FAIL'}]
 
-   d) Starting voltage drop  (cos phi_start = ${cosStart}, sin phi_start = ${sinStart.toFixed(4)})`;
+   d) Starting voltage drop  (rho_cold, cos phi_start = ${cosStart}, sin phi_start = ${sinStart.toFixed(4)})`;
     if (method === 'vfd') {
       stepsText += '\n      VFD: starting voltage drop negligible — drive controls Istart.  [N/A]';
     } else {
       stepsText +=
 `
-      dU_start = ${vdFactor.toFixed(4)} * Istart * (Rcable * cos phi_start + Xcable * sin phi_start)
-               = ${vdFactor.toFixed(4)} * ${Istart.toFixed(3)} * (${Rcable.toFixed(6)} * ${cosStart} + ${Xcable.toFixed(6)} * ${sinStart.toFixed(4)})
+      dU_start = ${vdFactor.toFixed(4)} * Istart * (Rcable_start * cos phi_start + Xcable * sin phi_start)
+               = ${vdFactor.toFixed(4)} * ${Istart.toFixed(3)} * (${Rcable_start.toFixed(6)} * ${cosStart} + ${Xcable.toFixed(6)} * ${sinStart.toFixed(4)})
                = ${dU_start.toFixed(3)} V
       dU_start% = ${dU_start.toFixed(3)} / ${Un} * 100 = ${dU_start_pct.toFixed(3)} %
       Limit: <= ${maxVdStart} %  [${vdStartOk ? 'OK' : 'FAIL'}]`;
@@ -426,7 +453,7 @@ Installation: ${instLabel}
   window._mscSizLast = {
     Pn, Un, cosN, eta, cosStart, kstart, L, maxVdRun, maxVdStart,
     method, methodName, cableType, instMethod, instLabel, phases, phaseLabel,
-    In, Istart, sinN, sinStart, rho, Xkm, vdFactor, InFactor, matLabel,
+    In, Istart, sinN, sinStart, Tcable, rho_cold, rho_run, Xkm, vdFactor, InFactor, matLabel,
     res, stepsText,
   };
 }
@@ -492,6 +519,7 @@ async function mscDownloadPdf() {
     ['Starting power factor cos phi_start', String(r.cosStart)],
     ['Cable length L (one-way)',            r.L + ' m'],
     ['Conductor material',                  r.matLabel],
+    ['Cable operating temperature',         r.Tcable + ' \xb0C  (rho_cold = ' + r.rho_cold.toFixed(6) + ', rho_run = ' + r.rho_run.toFixed(6) + ' Ohm*mm^2/m)'],
     ['Cable type',                          r.cableType === 'single' ? 'Single-core (X = 0.08 Ohm/km)' : 'Multi-core (X = 0.07 Ohm/km)'],
     ['Installation method (IEC 60364-5-52)', r.instLabel],
     ['System',                              r.phases === 'ac3' ? 'Three-phase AC (AC3)' : 'Single-phase AC (AC1)'],
