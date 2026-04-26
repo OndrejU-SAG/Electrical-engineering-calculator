@@ -140,8 +140,14 @@ function resetToDefaults() {
       break;
 
     case 4:
+      mscSetMode('vd');
       document.getElementById('msc-method').value = 'dol';
       mscOnMethodChange();
+      document.getElementById('msc-max-vd-run').value   = 5;
+      document.getElementById('msc-max-vd-start').value = 10;
+      document.getElementById('msc-cable-type').value   = 'multi';
+      document.getElementById('msc-inst-method').value  = 'duct';
+      document.getElementById('msc-phases').value       = 'ac3';
       document.getElementById('msc-pn').value = 7.5;
       document.getElementById('msc-un').value = 400;
       document.getElementById('msc-cosn').value = 0.85;
@@ -151,6 +157,7 @@ function resetToDefaults() {
       document.getElementById('msc-len').value = 20;
       document.getElementById('msc-ik').value = 10;
       clickBtn('[onclick*="mscSetMaterial"][onclick*="\'cu\'"]');
+      window._mscSizLast = null;
       break;
 
     case 5:
