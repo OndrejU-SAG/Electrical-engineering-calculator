@@ -24,6 +24,39 @@ const IEC_AMP_AL = {
   burial: [18,   23,   29,  36, 48, 62,  80,  96, 113, 140, 166, 189, 213, 240, 277, 313, 352, 393, 437],
 };
 
+// IEC 60364-5-52 Annex B — Correction factors
+// Table B.52.14 — Ambient-air temperature factor Ca (3-loaded conductors)
+const IEC_CA_TEMPS  = [25, 30, 35, 40, 45, 50, 55, 60]; // °C
+const IEC_CA_PVC70  = [1.06, 1.00, 0.94, 0.87, 0.79, 0.71, 0.61, 0.50]; // PVC 70 °C
+const IEC_CA_XLPE90 = [1.04, 1.00, 0.96, 0.91, 0.87, 0.82, 0.76, 0.71]; // XLPE 90 °C
+
+// Table B.52.17 — Grouping factor Cg (cables in free air / on surfaces / in conduit)
+// Index = n-1; for n >= 9 use last value (0.70)
+const IEC_CG_TABLE = [1.00, 0.85, 0.79, 0.75, 0.73, 0.72, 0.72, 0.71, 0.70];
+
+// Table B.52.20 — Soil thermal-resistivity correction factor Crho (direct burial D1)
+// Reference: 2.5 K·m/W → Crho = 1.00; other values adjust Iz proportionally
+const IEC_CRHO_RHO  = [0.5,  0.7,  1.0,  1.5,  2.0,  2.5,  3.0];
+const IEC_CRHO_FACT = [1.28, 1.20, 1.18, 1.10, 1.05, 1.00, 0.96];
+
+function getCa(ambTemp, insType) {
+  const arr = insType === 'xlpe' ? IEC_CA_XLPE90 : IEC_CA_PVC70;
+  const idx = IEC_CA_TEMPS.indexOf(ambTemp);
+  if (idx >= 0) return arr[idx];
+  for (let i = 0; i < IEC_CA_TEMPS.length - 1; i++) {
+    if (ambTemp > IEC_CA_TEMPS[i] && ambTemp < IEC_CA_TEMPS[i + 1]) {
+      const t = (ambTemp - IEC_CA_TEMPS[i]) / (IEC_CA_TEMPS[i + 1] - IEC_CA_TEMPS[i]);
+      return arr[i] + t * (arr[i + 1] - arr[i]);
+    }
+  }
+  return ambTemp < IEC_CA_TEMPS[0] ? arr[0] : arr[arr.length - 1];
+}
+
+function getCg(n) {
+  const idx = Math.min(Math.max(Math.round(n) - 1, 0), IEC_CG_TABLE.length - 1);
+  return IEC_CG_TABLE[idx];
+}
+
 const MM2_AWG_STR = {
   1.5: 'AWG 16',      2.5: 'AWG 14',      4:   'AWG 12',      6:   'AWG 10',
   10:  'AWG 8',       16:  'AWG 6',        25:  'AWG 4',       35:  'AWG 2',
@@ -212,20 +245,23 @@ function mscCalcFullSizing() {
   const errEl = document.getElementById('msc-err');
   errEl.style.display = 'none';
 
-  const Pn         = parseFloat(document.getElementById('msc-pn').value);
-  const Un         = parseFloat(document.getElementById('msc-un').value);
-  const cosN       = parseFloat(document.getElementById('msc-cosn').value);
-  const eta        = parseFloat(document.getElementById('msc-eta').value);
-  const cosStart   = parseFloat(document.getElementById('msc-cosstart').value);
-  const kstart     = parseFloat(document.getElementById('msc-kstart').value);
-  const L          = parseFloat(document.getElementById('msc-len').value);
-  const maxVdRun   = parseFloat(document.getElementById('msc-max-vd-run').value);
-  const maxVdStart = parseFloat(document.getElementById('msc-max-vd-start').value);
-  const Tcable     = parseFloat(document.getElementById('msc-cable-temp').value);
-  const method     = document.getElementById('msc-method').value;
-  const cableType  = document.getElementById('msc-cable-type').value;
-  const instMethod = document.getElementById('msc-inst-method').value;
-  const phases     = document.getElementById('msc-phases').value;
+  const Pn          = parseFloat(document.getElementById('msc-pn').value);
+  const Un          = parseFloat(document.getElementById('msc-un').value);
+  const cosN        = parseFloat(document.getElementById('msc-cosn').value);
+  const eta         = parseFloat(document.getElementById('msc-eta').value);
+  const cosStart    = parseFloat(document.getElementById('msc-cosstart').value);
+  const kstart      = parseFloat(document.getElementById('msc-kstart').value);
+  const L           = parseFloat(document.getElementById('msc-len').value);
+  const maxVdRun    = parseFloat(document.getElementById('msc-max-vd-run').value);
+  const maxVdStart  = parseFloat(document.getElementById('msc-max-vd-start').value);
+  const Tcable      = parseFloat(document.getElementById('msc-cable-temp').value);
+  const ambTemp     = parseFloat(document.getElementById('msc-ambient').value);
+  const nGrouping   = parseInt(document.getElementById('msc-grouping').value, 10);
+  const utilisation = parseFloat(document.getElementById('msc-utilisation').value);
+  const method      = document.getElementById('msc-method').value;
+  const cableType   = document.getElementById('msc-cable-type').value;
+  const instMethod  = document.getElementById('msc-inst-method').value;
+  const phases      = document.getElementById('msc-phases').value;
 
   if ([Pn, Un, cosN, eta, cosStart, kstart, L, maxVdRun, maxVdStart, Tcable].some(v => isNaN(v) || v <= 0)) {
     errEl.textContent = T[lang].errPositive;
@@ -237,11 +273,23 @@ function mscCalcFullSizing() {
     errEl.style.display = 'block';
     return;
   }
+  if (isNaN(ambTemp) || ambTemp < 25 || ambTemp > 60 ||
+      isNaN(nGrouping) || nGrouping < 1 || nGrouping > 20 ||
+      isNaN(utilisation) || utilisation < 0.5 || utilisation > 1.0) {
+    errEl.textContent = T[lang].mscErrCorrFactors || 'Check ambient temperature (25–60 °C), grouping (1–20), utilisation (0.5–1.0).';
+    errEl.style.display = 'block';
+    return;
+  }
 
   const mat      = MATERIAL[mscMaterial];
   const rho_cold = mat.rho20;                                     // 20 °C — cold cable (starting transient)
   const rho_run  = mat.rho20 * (1 + mat.alpha * (Tcable - 20));  // at operating temp — IEC 60364-5-52 §G.52.2
   const ampTable = mscMaterial === 'cu' ? IEC_AMP_CU : IEC_AMP_AL;
+
+  // IEC 60364-5-52 Annex B correction factors
+  const Ca   = getCa(ambTemp, 'pvc');        // Table B.52.14 — ambient air temperature
+  const Cg   = getCg(nGrouping);             // Table B.52.17 — grouping
+  const Crho = instMethod === 'burial' ? 1.00 : 1.00; // Table B.52.20 — soil resistivity (ref. 2.5 K·m/W)
   const Xkm      = cableType === 'single' ? 0.08 : 0.07;  // Ω/km
   const InFactor = phases === 'ac3' ? Math.sqrt(3) : 1;
   const vdFactor = phases === 'ac3' ? Math.sqrt(3) : 2;
@@ -262,8 +310,9 @@ function mscCalcFullSizing() {
   const trials = [];
 
   for (let i = 0; i < IEC_SIZ_SIZES.length; i++) {
-    const S  = IEC_SIZ_SIZES[i];
-    const Iz = ampTable[instMethod][i];
+    const S       = IEC_SIZ_SIZES[i];
+    const Iz      = ampTable[instMethod][i];
+    const Iz_eff  = Iz * Ca * Cg * Crho * utilisation;
 
     const Rcable_run   = rho_run  * L / S * (1 + skinEffectYs(50, rho_run  / S));
     const Rcable_start = rho_cold * L / S * (1 + skinEffectYs(50, rho_cold / S));
@@ -274,11 +323,11 @@ function mscCalcFullSizing() {
     const dU_run_pct   = (dU_run   / Un) * 100;
     const dU_start_pct = (dU_start / Un) * 100;
 
-    const ampOk     = Iz >= In;
+    const ampOk     = Iz_eff >= In;
     const vdRunOk   = dU_run_pct  <= maxVdRun;
     const vdStartOk = method === 'vfd' || dU_start_pct <= maxVdStart;
 
-    const t = { S, Iz, Rcable_run, Rcable_start, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, ampOk, vdRunOk, vdStartOk };
+    const t = { S, Iz, Iz_eff, Rcable_run, Rcable_start, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, ampOk, vdRunOk, vdStartOk };
     trials.push(t);
 
     if (!found && ampOk && vdRunOk && vdStartOk) found = t;
@@ -286,11 +335,13 @@ function mscCalcFullSizing() {
 
   // ── Build step-by-step text ─────────────────────────────────────────────
   const phaseLabel = phases === 'ac3' ? 'AC3 three-phase (factor = sqrt(3))' : 'AC1 single-phase (factor = 2)';
+  const caRow = IEC_CA_TEMPS.map((t, i) => `${t} °C → ${IEC_CA_PVC70[i].toFixed(2)}`).join('  |  ');
+  const cgRow = IEC_CG_TABLE.map((v, i) => `n=${i + 1}: ${v.toFixed(2)}`).join('  |  ');
   let stepsText =
 `Method: ${methodName}  |  Material: ${matLabel}  |  System: ${phaseLabel}
 Cable: ${cableType === 'single' ? 'Single-core' : 'Multi-core'} (X = ${Xkm * 1000} mOhm/km)
 Installation: ${instLabel}
-Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
+Ref: IEC 60364-5-52 §G.52.2 + Annex B (Tables B.52.14, B.52.17${instMethod === 'burial' ? ', B.52.20' : ''})
 ────────────────────────────────────────────────────────────────────
 1. Rated current
    In = (Pn * 1000) / (${phases === 'ac3' ? 'sqrt(3) * Un' : 'Un'} * cos(phi_n) * eta)
@@ -309,13 +360,32 @@ Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
      rho_run  = ${rho_cold.toFixed(6)} * (1 + ${mat.alpha} * (${Tcable} - 20))
               = ${rho_run.toFixed(6)} Ohm*mm^2/m  [used for dU_run]
 
-4. Ampacity table: IEC 60364-5-52, ${instLabel}, ${matLabel}, PVC 70°C, 30°C ambient
+4. Ampacity table: IEC 60364-5-52, ${instLabel}, ${matLabel}, PVC 70°C, reference 30°C ambient
 
-5. Iterative sizing — first size satisfying: Iz >= In, dU_run <= ${maxVdRun} %, dU_start <= ${maxVdStart} %
+5. Annex B correction factors — effective ampacity Iz_eff = Iz_table * Ca * Cg${instMethod === 'burial' ? ' * Crho' : ''} * Ku
+
+   a) Ca — ambient-temperature factor (Table B.52.14, PVC 70°C)
+      ${caRow}
+      theta_amb = ${ambTemp} °C  →  Ca = ${Ca.toFixed(4)}
+
+   b) Cg — grouping factor (Table B.52.17, cables in air / on surfaces / in conduit)
+      ${cgRow}  |  n>=9: 0.70
+      n = ${nGrouping} circuit${nGrouping > 1 ? 's' : ''}  →  Cg = ${Cg.toFixed(4)}
+${instMethod === 'burial' ? `
+   c) Crho — soil thermal-resistivity factor (Table B.52.20, direct burial D1)
+      Reference soil resistivity: 2.5 K*m/W  ->  Crho = 1.00 (reference condition)
+` : ''}
+   Ku — utilisation factor (user-defined): ${utilisation}
+
+   Iz_eff = Iz_table * Ca * Cg${instMethod === 'burial' ? ' * Crho' : ''} * Ku
+          = Iz_table * ${Ca.toFixed(4)} * ${Cg.toFixed(4)}${instMethod === 'burial' ? ' * 1.0000' : ''} * ${utilisation}
+          = Iz_table * ${(Ca * Cg * Crho * utilisation).toFixed(4)}
+
+6. Iterative sizing — first size satisfying: Iz_eff >= In, dU_run <= ${maxVdRun} %, dU_start <= ${maxVdStart} %
 `;
 
   if (found) {
-    const { S, Iz, Rcable_run, Rcable_start, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, vdRunOk, vdStartOk } = found;
+    const { S, Iz, Iz_eff, Rcable_run, Rcable_start, Xcable, dU_run, dU_run_pct, dU_start, dU_start_pct, vdRunOk, vdStartOk } = found;
     const ys_run   = skinEffectYs(50, rho_run  / S);
     const ys_cold  = skinEffectYs(50, rho_cold / S);
     stepsText +=
@@ -323,9 +393,10 @@ Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
    Recommended: ${S} mm²
 
    a) Ampacity check
-      Iz = ${Iz} A  (IEC 60364-5-52, ${instLabel})
-      In = ${In.toFixed(3)} A
-      ${Iz} >= ${In.toFixed(3)} A  [OK]
+      Iz_table = ${Iz} A  (IEC 60364-5-52, ${instLabel})
+      Iz_eff   = ${Iz} * ${Ca.toFixed(4)} * ${Cg.toFixed(4)}${instMethod === 'burial' ? ' * 1.0000' : ''} * ${utilisation} = ${Iz_eff.toFixed(2)} A
+      In       = ${In.toFixed(3)} A
+      ${Iz_eff.toFixed(2)} >= ${In.toFixed(3)} A  [OK]
 
    b) Cable impedance for ${S} mm², L = ${L} m
       Rcable_run   = rho_run  * L / S * (1 + ys_run)
@@ -397,7 +468,7 @@ Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
   </tr>`;
   tbody.innerHTML += `<tr>
     <td>${T[lang].mscSizAmpacity}</td>
-    <td>${displayRes.Iz} A</td>
+    <td>${displayRes.Iz_eff.toFixed(1)} A&ensp;<span style="color:#888;font-size:0.85em">(Iz=${displayRes.Iz} A &times; Ca=${Ca.toFixed(3)} &times; Cg=${Cg.toFixed(3)} &times; Ku=${utilisation})</span></td>
     <td>&ge; ${In.toFixed(1)} A</td>
     <td>${mkBadge(displayRes.ampOk)}</td>
   </tr>`;
@@ -422,7 +493,7 @@ Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
   if (res) {
     tripBox.classList.add('sc-trip-ok');
     tripStatus.textContent = T[lang].mscSizOk;
-    tripDetail.textContent = `${res.S} mm² — Iz = ${res.Iz} A ≥ In = ${In.toFixed(1)} A`;
+    tripDetail.textContent = `${res.S} mm² — Iz_eff = ${res.Iz_eff.toFixed(1)} A ≥ In = ${In.toFixed(1)} A  (Ca=${Ca.toFixed(3)}, Cg=${Cg.toFixed(3)}, Ku=${utilisation})`;
   } else {
     tripBox.classList.add('sc-trip-fail');
     tripStatus.textContent = T[lang].mscSizFailAll;
@@ -454,6 +525,7 @@ Ref: IEC 60364-5-52 §G.52.2 — temperature-corrected resistivity
     Pn, Un, cosN, eta, cosStart, kstart, L, maxVdRun, maxVdStart,
     method, methodName, cableType, instMethod, instLabel, phases, phaseLabel,
     In, Istart, sinN, sinStart, Tcable, rho_cold, rho_run, Xkm, vdFactor, InFactor, matLabel,
+    ambTemp, nGrouping, utilisation, Ca, Cg, Crho,
     res, stepsText,
   };
 }
@@ -523,6 +595,10 @@ async function mscDownloadPdf() {
     ['Cable type',                          r.cableType === 'single' ? 'Single-core (X = 0.08 Ohm/km)' : 'Multi-core (X = 0.07 Ohm/km)'],
     ['Installation method (IEC 60364-5-52)', r.instLabel],
     ['System',                              r.phases === 'ac3' ? 'Three-phase AC (AC3)' : 'Single-phase AC (AC1)'],
+    ['Ambient temperature (IEC Tab. B.52.14)', r.ambTemp + ' \xb0C  →  Ca = ' + r.Ca.toFixed(4) + '  (PVC 70\xb0C)'],
+    ['Grouping — parallel circuits (IEC Tab. B.52.17)', 'n = ' + r.nGrouping + '  →  Cg = ' + r.Cg.toFixed(4)],
+    ['Utilisation factor Ku',               String(r.utilisation)],
+    ...(r.instMethod === 'burial' ? [['Soil resistivity (IEC Tab. B.52.20)', 'Reference 2.5 K\xb7m/W  →  Crho = 1.00']] : []),
     ['Max running voltage drop limit',      r.maxVdRun + ' %'],
     ['Max starting voltage drop limit',     r.maxVdStart + ' %'],
   ]);
@@ -570,7 +646,8 @@ async function mscDownloadPdf() {
     const vfd  = r.method === 'vfd';
     const rows = [
       ['Rated current In',      r.In.toFixed(2) + ' A',                                                    '—',                          null],
-      ['Cable ampacity Iz',     r.res.Iz + ' A',                                                            '>= ' + r.In.toFixed(1) + ' A',  r.res.ampOk],
+      ['Cable ampacity Iz_eff (Ca=' + r.Ca.toFixed(3) + ', Cg=' + r.Cg.toFixed(3) + ', Ku=' + r.utilisation + ')',
+                             r.res.Iz_eff.toFixed(2) + ' A  (Iz_table=' + r.res.Iz + ' A)',              '>= ' + r.In.toFixed(1) + ' A',  r.res.ampOk],
       ['Running voltage drop',  r.res.dU_run_pct.toFixed(2) + ' % (' + r.res.dU_run.toFixed(2) + ' V)',    '<= ' + r.maxVdRun + ' %',    r.res.vdRunOk],
       ['Starting voltage drop', vfd ? 'Negligible (VFD)' : r.res.dU_start_pct.toFixed(2) + ' % (' + r.res.dU_start.toFixed(2) + ' V)',
                                 vfd ? '—'                : '<= ' + r.maxVdStart + ' %',
