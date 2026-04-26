@@ -600,7 +600,7 @@ async function mscDownloadPdf() {
       if (!line.trim()) return;
 
       // Box-drawing separator line → draw an actual PDF rule
-      if (/^[\u2500\u2574\u2501-]{5,}/.test(line.trim())) {
+      if (/^[─-╿\-]{5,}/.test(line.trim())) {
         doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
         doc.line(M, y - 1.5, PW - M, y - 1.5);
         return;
