@@ -31,9 +31,17 @@ const SC_CURVES = {
 const SC_FUSE_FACTOR = 1.6; // I₂ conventional fusing current (IEC 60269-2) — overload info only
 
 // IEC 60364-4-43 Table 43A — k factor for cable thermal withstand I²t ≤ (k·S)²
+// IEC 60364-4-43 Table 43A — k factor for cable thermal withstand I²t ≤ (k·S)²
+// key: insulation type → {cu, al} k values
 const SC_THW_K = {
-  cu: { pvc: 115, xlpe: 143 },
-  al: { pvc: 76,  xlpe: 94  },
+  pvc:     { cu: 115, al: 76  },  // PVC 70°C  (70→160°C)
+  xlpe:    { cu: 143, al: 94  },  // XLPE/EPR 90°C  (90→250°C)
+  rubber:  { cu: 141, al: 93  },  // Rubber 60°C  (60→200°C)
+  lszh:    { cu: 100, al: 66  },  // LSZH/HFFR 90°C  (90→160°C)
+  si:      { cu: 132, al: 87  },  // Silicone rubber 180°C  (180→350°C)
+  mineral: { cu: 115, al: 115 },  // Mineral (PVC-sheathed or bare, exposed to touch)
+  mineralb:{ cu: 135, al: 135 },  // Mineral (bare, not normally exposed to touch)
+  // 'custom' is handled separately via sc-insul-k input
 };
 
 // gG fuse disconnection-current multipliers k_a = I_a / In (IEC 60269-2 Annex B / IEC 60364-4-43 Table A)
@@ -267,6 +275,12 @@ function scRefreshHints() {
 }
 
 // ─── import from tab 0 ───────────────────────────────────────────────────────
+
+function scOnInsulChange() {
+  const v = document.getElementById('sc-insul')?.value;
+  const row = document.getElementById('sc-insul-custom-row');
+  if (row) row.style.display = v === 'custom' ? '' : 'none';
+}
 
 function scImportFromCalc() {
   if (typeof lastCalcResult === 'undefined' || !lastCalcResult) {
@@ -771,7 +785,13 @@ function scCalculate() {
   // ─── IEC 60364-4-43 §434.5 Cable Thermal Withstand ──────────────────────
   const insulType = (document.getElementById('sc-insul')?.value || 'pvc');
   const It2_input = parseFloat(document.getElementById('sc-it2')?.value) || 30000;
-  const k_thw     = (SC_THW_K[scMaterial] || SC_THW_K.cu)[insulType] || 115;
+  let k_thw;
+  if (insulType === 'custom') {
+    k_thw = parseFloat(document.getElementById('sc-insul-k')?.value) || 115;
+  } else {
+    const kRow = SC_THW_K[insulType] || SC_THW_K.pvc;
+    k_thw = kRow[scMaterial] ?? kRow.cu;
+  }
   const kS2       = Math.pow(k_thw * S, 2);   // (k·S)²  A²·s
 
   let thw_dt;
@@ -1140,7 +1160,12 @@ async function scDownloadPdf() {
       ['Cable length L', r.L + ' m'],
     ];
     if (r.Re > 0) inputRows.push(['Earth resistance Re (TT)', r.Re + ' Ohm']);
-    const insulLbl = { pvc: 'PVC 70°C', xlpe: 'XLPE/EPR 90°C' };
+    const insulLbl = {
+      pvc: 'PVC 70°C', xlpe: 'XLPE/EPR 90°C', rubber: 'Rubber 60°C',
+      lszh: 'LSZH/HFFR 90°C', si: 'Silicone 180°C',
+      mineral: 'Mineral (PVC/bare to touch)', mineralb: 'Mineral (bare, not to touch)',
+      custom: 'Custom',
+    };
     inputRows.push(
       ['Protective device', r.devType.toUpperCase()],
       ['Rated current In', r.In + ' A'],

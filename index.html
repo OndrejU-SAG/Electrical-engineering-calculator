@@ -568,10 +568,20 @@
     <div class="fld" style="margin-top:8px">
       <label data-t="scInsul">Izolace vodiče (§434.5 k-faktor)</label>
       <div class="fld-inner">
-        <select id="sc-insul" style="padding-left:9px">
+        <select id="sc-insul" onchange="scOnInsulChange()" style="padding-left:9px">
           <option value="pvc">PVC 70 °C  (k = 115 Cu / 76 Al)</option>
           <option value="xlpe">XLPE / EPR 90 °C  (k = 143 Cu / 94 Al)</option>
+          <option value="rubber">Guma 60 °C  (k = 141 Cu / 93 Al)</option>
+          <option value="lszh">LSZH / HFFR 90 °C  (k = 100 Cu / 66 Al)</option>
+          <option value="si">Silikon 180 °C  (k = 132 Cu / 87 Al)</option>
+          <option value="mineral">Minerální (plášť PVC / holý dotek)  (k = 115)</option>
+          <option value="mineralb">Minerální holý (bez dotyku)  (k = 135)</option>
+          <option value="custom">Vlastní k-faktor…</option>
         </select>
+      </div>
+      <div id="sc-insul-custom-row" style="display:none;margin-top:6px">
+        <div class="fld-inner"><input type="number" id="sc-insul-k" value="115" min="1" max="999" step="1"><span class="fld-unit">k</span></div>
+        <div class="fld-hint" data-t="scInsulKHint">Vlastní k-faktor (již kombinuje materiál)</div>
       </div>
       <div class="fld-hint" data-t="scInsulHint">IEC 60364-4-43 Tabulka 43A</div>
     </div>
