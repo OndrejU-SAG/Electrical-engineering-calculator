@@ -47,12 +47,21 @@ function getDerating(condKey) {
   return CONDUCTOR_DERATING.find(d => d.key === condKey)?.factor ?? 1.0;
 }
 
+// IEC 60364-5-54:2011 Table 54.2 — Simplified method for PE/PEN conductor sizing
+// S_pe = S_phase for S_phase ≤ 16 mm²
+// S_pe = 16 mm² for 16 < S_phase ≤ 35 mm²
+// S_pe = S_phase / 2 for S_phase > 35 mm²
 function calcPeMm2(s) {
   if (s <= 16) return s;
   if (s <= 35) return 16;
-  if (s <= 400) return s / 2;
-  if (s <= 800) return 200;
-  return s / 4;
+  return s / 2;
+}
+
+// IEC 60364-5-54 §543.1.2 — Adiabatic short-circuit withstand check
+// S_min = √(I_fault² × t) / k
+// Where: I_fault = fault current (A), t = clearing time (s), k = adiabatic factor from Table 54.1
+function calcPeAdiabatic(I_fault, t, k) {
+  return Math.sqrt(I_fault * I_fault * t) / k;
 }
 
 function suggestFuse(Im) {

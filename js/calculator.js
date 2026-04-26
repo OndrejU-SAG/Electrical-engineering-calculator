@@ -123,11 +123,42 @@ function calculate() {
     `<span class="rec-tag">${T[lang].wireAmpTag} ${res.wireAmp.toFixed(1)} A</span>`,
     `<span class="rec-tag">${T[lang].fuseTag} ${res.fuse} A</span>`
   ].join('');
+  // IEC 60364-5-54 Table 54.2 simplified method for PE/PEN sizing
   const peMm2raw = calcPeMm2(res.recStd);
   const peStd = stdMm2Up(peMm2raw);
   const peAwg = stdAwgUp(peMm2raw);
+  
+  // Check for fault data from short-circuit tab (tab 3)
+  let peAdiabaticHtml = '';
+  if (typeof window._scLastResult !== 'undefined' && window._scLastResult) {
+    const scRes = window._scLastResult;
+    // Use Ik1_max (earth fault) for adiabatic check, fall back to Ik3_max
+    const I_fault_A = (scRes.Ik1_max || scRes.Ik1_min || scRes.Ik3_max || scRes.Ik3_min) * 1000; // kA → A
+    // Get clearing time from sc.js form
+    const discTimeEl = document.getElementById('sc-disc-time');
+    const t_s = discTimeEl ? parseFloat(discTimeEl.value) : 0.4; // default 0.4s for final circuits
+    // Use copper k_adi by default (from MATERIAL.cu.k_adi = 115)
+    const k = MATERIAL.cu.k_adi;
+    
+    if (I_fault_A > 0 && t_s > 0) {
+      const peAdiabaticRaw = calcPeAdiabatic(I_fault_A, t_s, k);
+      const peAdiabaticStd = stdMm2Up(peAdiabaticRaw);
+      const peAdiabaticAwg = stdAwgUp(peAdiabaticRaw);
+      const peAdiabaticFmt = fmtMm2(peAdiabaticRaw);
+      peAdiabaticHtml = `
+        <span class="rec-pe-method">
+          <span class="rec-pe-label">Adiabatic (IEC 60364-5-54 §543.1.2):</span>
+          <span class="rec-pe-adiabatic">${peAdiabaticStd} mm² · ${fmtAwg(peAdiabaticAwg)}</span>
+          <span class="rec-pe-note">(S=√(I²·t)/k = √(${Math.round(I_fault_A)}²·${t_s})/${k} = ${peAdiabaticFmt} mm²)</span>
+        </span>
+      `;
+    }
+  }
+  
   document.getElementById('recPe').innerHTML =
-    `<span class="rec-pe-badge">${T[lang].peRec}</span><span class="rec-pe-val">${peStd} mm²  ·  ${fmtAwg(peAwg)}</span>`;
+    `<span class="rec-pe-badge">${T[lang].peRec}</span><span class="rec-pe-val">${peStd} mm²  ·  ${fmtAwg(peAwg)}</span>` +
+    (peAdiabaticHtml ? '<br>' + peAdiabaticHtml : '');
+  
   lastCalcResult = { recStd: res.recStd, recAwg: res.recAwg, peStd, peAwg };
   document.getElementById('rVdAllow').textContent = res.Vd.toFixed(3) + ' V';
   document.getElementById('rVdAllowP').textContent = pct.toFixed(1) + '% ' + T[lang].of + ' ' + V + ' V';
