@@ -601,9 +601,12 @@ function scCalculate() {
   if (U_LL < U0 * 0.99) return fail('Inconsistent voltage: U_LL must equal U0 × √3.');
 
   let Re = 0;
+  let Re_supply = 0, Re_load = 0;
   if (scNetworkType === 'tt') {
-    Re = parseFloat(document.getElementById('sc-re').value);
-    if (isNaN(Re) || Re < 0) return fail(T[lang].scErrFill);
+    Re_supply = parseFloat(document.getElementById('sc-re-supply').value);
+    Re_load   = parseFloat(document.getElementById('sc-re').value);
+    if (isNaN(Re_supply) || Re_supply < 0 || isNaN(Re_load) || Re_load < 0) return fail(T[lang].scErrFill);
+    Re = Re_supply + Re_load;  // Re_total used throughout
   }
 
   // ── source impedance (complex) ─────────────────────────────────────────────
@@ -839,7 +842,7 @@ function scCalculate() {
     'Cable x\' = ' + scCableXpm + ' mΩ/m',
     'Max Ik: T = 20°C (reference, IEC 60909 §4.2)   ρ = ' + engRound(rhoRef, 3) + ' Ω·mm²/m',
     'Min Ik: T = ' + scCondTemp + '°C (operating)   ρ = ' + engRound(rhoHot, 4) + ' Ω·mm²/m',
-    'Network: ' + scNetworkType.toUpperCase() + (Re > 0 ? '   Re = ' + Re + ' Ω' : ''),
+    'Network: ' + scNetworkType.toUpperCase() + (Re > 0 ? '   Re_supply = ' + Re_supply + ' Ω   Re_load = ' + Re_load + ' Ω   Re_total = ' + Re + ' Ω' : ''),
   ].join('\n');
 
   // ─── calculation steps ───────────────────────────────────────────────────
@@ -854,7 +857,9 @@ function scCalculate() {
     'rho_ref (20C) = ' + engRound(rhoRef, 4) + ' Ohm*mm2/m',
     'rho_hot (' + scCondTemp + 'C) = ' + engRound(rhoHot, 4) + ' Ohm*mm2/m  [rho(T)=rho20*(1+alpha*(T-20))]',
     'Cable reactance x\' = ' + scCableXpm + ' mOhm/m',
-    Re > 0 ? 'Re (TT earth) = ' + Re + ' Ohm' : '',
+    Re > 0 ? 'Re_supply (TT source electrode) = ' + Re_supply + ' Ohm' : '',
+    Re > 0 ? 'Re_load   (TT load electrode)   = ' + Re_load   + ' Ohm' : '',
+    Re > 0 ? 'Re_total  = Re_supply + Re_load  = ' + Re        + ' Ohm' : '',
     '',
     '=== IEC 60909 voltage factors ===',
     'c_max = ' + C_MAX + '  (maximum fault current — equipment rating / Icu check)',
@@ -882,8 +887,8 @@ function scCalculate() {
       '',
     ] : []),
     '=== Phase-to-earth loop impedances (TN) ===',
-    'Z1_max = sqrt((Rs+Rf_max+Rpe_max' + (Re>0?'+Re':'')+')^2 + (Xs+Xf+Xpe)^2) = ' + fmtmOhm(Z1_max),
-    'Z1_min = sqrt((Rs+Rf_hot+Rpe_hot' + (Re>0?'+Re':'')+')^2 + (Xs+Xf+Xpe)^2) = ' + fmtmOhm(Z1_min),
+    'Z1_max = sqrt((Rs+Rf_max+Rpe_max' + (Re>0?'+Re_total':'')+')^2 + (Xs+Xf+Xpe)^2) = ' + fmtmOhm(Z1_max),
+    'Z1_min = sqrt((Rs+Rf_hot+Rpe_hot' + (Re>0?'+Re_total':'')+')^2 + (Xs+Xf+Xpe)^2) = ' + fmtmOhm(Z1_min),
     '',
     '=== Fault currents ===',
     ...(isSinglePhase ? [
@@ -923,7 +928,7 @@ function scCalculate() {
     '',
     '=== Maximum cable length (guaranteed trip, c_min, hot cable) ===',
     'Solve quadratic: (B^2+D^2)*L^2 + 2*(A*B+C*D)*L + (A^2+C^2-Ztarget^2) = 0',
-    'where A=Rs+Re=' + fmtO(Rs+Re) + '  B=rho_hot*(1/S+1/Spe)=' + engRound(rhoHot*(1/S+1/Spe),4) + ' Ohm/m',
+    'where A=Rs+Re_total=' + fmtO(Rs+Re) + '  B=rho_hot*(1/S+1/Spe)=' + engRound(rhoHot*(1/S+1/Spe),4) + ' Ohm/m',
     '      C=Xs=' + fmtO(Xs) + '  D=2*x\'=' + engRound(2*xpm,5) + ' Ohm/m',
     '      Ztarget=c_min*U0/tripHi=' + fmtO(Ztarget),
     L_max > 0
@@ -936,7 +941,7 @@ function scCalculate() {
   document.getElementById('sc-res-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   window._scLastResult = {
-    U0, U_LL, ik_kA, S, Spe, L, In, Icu_kA, devType, Re,
+    U0, U_LL, ik_kA, S, Spe, L, In, Icu_kA, devType, Re, Re_supply, Re_load,
     rhoRef, rhoHot, XR, xpm: scCableXpm,
     Rs, Xs, Zs_mag, Rf_hot, Xf, Rpe_hot, Z3_min, Z1_min,
     Ik3_max, Ik3_min, Ik2_max, Ik2_min, Ik1_max, Ik1_min,
@@ -1159,7 +1164,11 @@ async function scDownloadPdf() {
       ['PE conductor Spe', r.Spe + ' mm2'],
       ['Cable length L', r.L + ' m'],
     ];
-    if (r.Re > 0) inputRows.push(['Earth resistance Re (TT)', r.Re + ' Ohm']);
+    if (r.Re > 0) {
+      inputRows.push(['Re_supply (TT, source electrode)', r.Re_supply + ' Ohm']);
+      inputRows.push(['Re_load (TT, load electrode)', r.Re_load + ' Ohm']);
+      inputRows.push(['Re_total = Re_supply + Re_load', r.Re + ' Ohm']);
+    }
     const insulLbl = {
       pvc: 'PVC 70°C', xlpe: 'XLPE/EPR 90°C', rubber: 'Rubber 60°C',
       lszh: 'LSZH/HFFR 90°C', si: 'Silicone 180°C',
