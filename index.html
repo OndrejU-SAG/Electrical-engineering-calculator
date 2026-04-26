@@ -833,6 +833,38 @@
     <div class="sc-icu-box" id="sc-icu-box" style="display:none"></div>
     <div class="sc-icu-warn" id="sc-icu-warn" style="display:none"></div>
 
+    <!-- IEC 60364-4-41 §411.4.4 Disconnection Time Verification -->
+    <div class="sc-dtv-card" id="sc-dtv-card" style="display:none">
+      <div class="sc-dtv-hdr">
+        <div class="sc-thw-title">Disconnection Time Verification — IEC 60364-4-41 §411.4.4</div>
+        <div class="sc-dtv-tmax-row">
+          <span class="sc-thw-lbl">t<sub>max</sub></span>
+          <select class="sc-dtv-sel" id="sc-dtv-tmax" onchange="scUpdateDtv()">
+            <option value="5">5 s — distribution</option>
+            <option value="1">1 s</option>
+            <option value="0.4" selected>0.4 s — final (TN)</option>
+            <option value="0.2">0.2 s</option>
+            <option value="0.1">0.1 s</option>
+          </select>
+        </div>
+      </div>
+      <div class="sc-thw-rows sc-dtv-rows">
+        <div class="sc-thw-item">
+          <span class="sc-thw-lbl">I<sub>a</sub> (trip current at t<sub>max</sub>)</span>
+          <span class="sc-thw-val" id="sc-dtv-ia">—</span>
+        </div>
+        <div class="sc-thw-item">
+          <span class="sc-thw-lbl">Zs (actual, Z1_min)</span>
+          <span class="sc-thw-val" id="sc-dtv-zs">—</span>
+        </div>
+        <div class="sc-thw-item">
+          <span class="sc-thw-lbl">Zs<sub>max</sub> = c<sub>min</sub> × U₀ / I<sub>a</sub></span>
+          <span class="sc-thw-val" id="sc-dtv-zsmax">—</span>
+        </div>
+      </div>
+      <div class="sc-thw-badge" id="sc-dtv-badge">—</div>
+    </div>
+
     <div class="divider" style="margin:14px 0"></div>
     <div class="sc-res-sub-lbl" data-t="scResMaxLen">Max. délka kabelu (zaručené vybavení)</div>
     <div class="sc-maxlen-box sc-maxlen-ok" id="sc-maxlen-box">—</div>

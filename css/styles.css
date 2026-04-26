@@ -622,6 +622,16 @@ option{background:var(--surf-2);color:var(--on-surf)}
 .sc-thw-pass .sc-thw-badge{color:#00c864}
 .sc-thw-warn .sc-thw-badge{color:#c88c00}
 .sc-thw-fail .sc-thw-badge{color:#ff6464}
+/* ── IEC 60364-4-41 §411.4.4 Disconnection Time Verification card ─────── */
+.sc-dtv-card{border-radius:var(--r-lg);padding:14px 18px;margin-top:10px}
+.sc-dtv-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:9px}
+.sc-dtv-tmax-row{display:flex;align-items:center;gap:6px}
+.sc-dtv-sel{background:var(--surf-3);border:1px solid var(--out-var);border-radius:var(--r-sm);color:var(--on-surf);font-size:11.5px;padding:3px 6px;font-family:'Roboto Mono',monospace;cursor:pointer}
+.sc-dtv-rows{margin-bottom:0}
+.sc-dtv-pass{background:rgba(0,200,100,.1);border:1.5px solid rgba(0,200,100,.3)}
+.sc-dtv-pass .sc-thw-badge{color:#00c864}
+.sc-dtv-fail{background:rgba(255,100,100,.1);border:1.5px solid rgba(255,100,100,.35)}
+.sc-dtv-fail .sc-thw-badge{color:#ff6464}
 .sc-icu-warn{background:rgba(200,100,0,.12);border:1px solid rgba(200,100,0,.4);color:#b86000;border-radius:6px;padding:8px 12px;font-size:12.5px;margin-top:6px}
 .sc-assumptions{background:var(--surf-2);border:1px solid var(--surf-3);border-radius:6px;padding:10px 12px;font-size:11px;color:var(--on-surf-var);font-family:monospace;white-space:pre-wrap;line-height:1.6;margin:0}
 

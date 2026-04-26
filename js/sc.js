@@ -51,6 +51,15 @@ const SC_FUSE_KA = {
   '0.1': { lo: 13.0, hi: 18.0 }, // very fast SLD/socket / sensitive loads
 };
 
+// I_a/In multipliers for gG fuses at each max disconnection time (IEC 60364-4-41 / IEC 60269-2)
+const SC_DTV_FUSE_IA = {
+  '5':   6.0,
+  '1':   8.0,
+  '0.4': 12.0,
+  '0.2': 15.0,
+  '0.1': 18.0,
+};
+
 function getFuseKa(discTime) {
   return SC_FUSE_KA[discTime] || SC_FUSE_KA['5'];
 }
@@ -58,6 +67,7 @@ function getFuseKa(discTime) {
 let scSourceMode  = 'known'; // 'known' | 'transformer'
 let scMaterial    = 'cu';
 let scNetworkType = 'tns';   // 'tns' | 'tnc' | 'tt'
+let _scDtvState   = null;    // { Z1_min, U0, In, isFuse, discTime, curveSel }
 let scVoltPreset  = 'ac3';   // 'ac1' = 1-phase 230 V | 'ac3' = 3-phase 400 V | 'custom' = U_LL input
 let scCondTemp    = 70;      // °C — conductor temperature for min Ik (protection check)
 let scSourceXR    = 1.0;     // X/R ratio of source impedance
@@ -574,6 +584,40 @@ function scAnalyzeSelectivity() {
   if (selPanel) selPanel.style.display = 'block';
 }
 
+// ─── IEC 60364-4-41 §411.4.4 Disconnection Time Verification ────────────────
+
+function scUpdateDtv() {
+  const card = document.getElementById('sc-dtv-card');
+  if (!_scDtvState) { card.style.display = 'none'; return; }
+  const { Z1_min, U0, In, isFuse, discTime, curveSel } = _scDtvState;
+
+  const tMax = parseFloat(document.getElementById('sc-dtv-tmax').value);
+
+  // I_a: current ensuring guaranteed disconnection within t_max
+  let Ia;
+  if (isFuse) {
+    Ia = (SC_DTV_FUSE_IA[String(tMax)] ?? SC_DTV_FUSE_IA['0.4']) * In;
+  } else {
+    // MCB instantaneous trip: upper multiplier guarantees trip in <<0.1 s (≤ any t_max).
+    // For 5 s distribution circuits, lower multiplier suffices (IEC 60898 §8.6.2.2).
+    const c = SC_CURVES[curveSel] || SC_CURVES['C'];
+    Ia = (tMax >= 5 ? c.min : c.max) * In;
+  }
+
+  const Zs_max    = C_MIN * U0 / Ia;  // Ω — IEC 60364-4-41 §411.4.4
+  const Zs_actual = Z1_min;           // Ω — minimum fault loop impedance (c_min, hot cable)
+  const pass      = Zs_actual <= Zs_max;
+
+  document.getElementById('sc-dtv-ia').textContent    = Ia.toFixed(1) + ' A';
+  document.getElementById('sc-dtv-zs').textContent    = fmtmOhm(Zs_actual);
+  document.getElementById('sc-dtv-zsmax').textContent = fmtmOhm(Zs_max);
+
+  const badge = document.getElementById('sc-dtv-badge');
+  badge.textContent  = pass ? '✅ PASS' : '❌ FAIL';
+  card.className     = 'sc-dtv-card ' + (pass ? 'sc-dtv-pass' : 'sc-dtv-fail');
+  card.style.display = 'block';
+}
+
 // ─── main calculation ────────────────────────────────────────────────────────
 
 function scCalculate() {
@@ -950,6 +994,10 @@ function scCalculate() {
     voltModeStr,
     thw: { k: k_thw, kS2, It2: It2_input, status: thw_status, dt: thw_dt, insulType },
   };
+
+  // ─── IEC 60364-4-41 §411.4.4 Disconnection Time Verification ───────────
+  _scDtvState = { Z1_min, U0, In, isFuse, discTime, curveSel };
+  scUpdateDtv();
 
   // Selectivity analysis (must run after _scLastResult is set)
   if (document.getElementById('sc-sel-check')?.checked) {
