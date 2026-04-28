@@ -8,12 +8,29 @@
 
 The calculator provides **six integrated modules**, each addressing a critical aspect of electrical system design:
 
-### 🔢 1. **Wire Size Calculator** (`calculator.js`, `core.js`)
+### 🔢 1. **Wire Size Calculator** (`iec-calculator.js`, `calculator.js`, `core.js`)
 **IEC 60228 / IEC 60364-5-52 Compliant**
 
-Determines minimum required conductor cross-section based on two limiting factors, evaluated in parallel:
-- **Voltage drop constraint** — Ensures conductor resistance doesn't cause excessive voltage loss
-- **Ampacity (thermal) constraint** — Ensures conductor can carry current without exceeding temperature rating
+Two sub-calculators accessible via tabs:
+
+#### A. **IEC 60364** (`iec-calculator.js`)
+Table-based conductor sizing per IEC 60364-5-52 Annex B. Selects from standard IEC ampacity tables with correction factors Ca and Cg, then checks voltage drop.
+
+**Insulation types:**
+- PVC 70 °C, XLPE/EPR 90 °C, Silicon 150 °C (approx.), PTFE/Teflon 200 °C (approx.)
+
+**Installation methods (reference methods A1–F per IEC 60364-5-52):**
+- Conduit in wall, conduit on wall, clipped direct, free air, trunking, etc.
+
+**Key Features:**
+- Ambient temperature correction (Ca), grouping correction (Cg)
+- Warns when result hits the 1.5 mm² table floor — recommends Analytical calculator for smaller conductors
+- AWG equivalent shown as secondary, de-emphasised result: nearest standard AWG ≥ mm² value (safe sizing), with ⓘ tooltip explaining the derivation
+
+#### B. **Analytical (simplified)** (`calculator.js`)
+Physics-based sizing using continuous formulas — determines minimum cross-section from two constraints in parallel:
+- **Voltage drop constraint** — conductor resistance vs. allowed voltage loss
+- **Ampacity (thermal) constraint** — thermal equilibrium at rated temperature
 
 **Key Features:**
 - Supports **DC, Single-phase AC, Three-phase AC** systems
@@ -392,16 +409,17 @@ Wires-calculator-main/
 │   └── styles.css      # Complete styling (16KB+)
 │
 ├── js/
-│   ├── app.js           # Core app: language, theme, tabs, defaults, init (9.3KB)
-│   ├── calculator.js    # Wire size calculator main logic (27.1KB)
-│   ├── core.js          # Physical constants, material props, core calculations (5.3KB)
-│   ├── converter.js     # MM²↔AWG converter (3.8KB)
-│   ├── i18n.js          # Internationalization strings (65.5KB)
-│   ├── motor.js         # Motor starting calculator (37.9KB)
-│   ├── pdf.js           # PDF export utilities (5.9KB)
-│   ├── sc.js            # Short-circuit calculator (115KB)
-│   ├── switchboard.js   # Switchboard temperature rise (45.8KB)
-│   └── tray.js          # Cable tray fill calculator (32.4KB)
+│   ├── app.js             # Core app: language, theme, tabs, defaults, init
+│   ├── calculator.js      # Wire size calculator — Analytical (simplified) sub-tab
+│   ├── core.js            # Physical constants, material props, core calculations
+│   ├── converter.js       # MM²↔AWG converter
+│   ├── i18n.js            # Internationalization strings (cs/de/en)
+│   ├── iec-calculator.js  # Wire size calculator — IEC 60364 table-based sub-tab
+│   ├── motor.js           # Motor starting calculator
+│   ├── pdf.js             # PDF export utilities
+│   ├── sc.js              # Short-circuit calculator
+│   ├── switchboard.js     # Switchboard temperature rise
+│   └── tray.js            # Cable tray fill calculator
 │
 └── assets/
     ├── Logo.png         # Company logo for PDF
@@ -644,5 +662,5 @@ For issues, questions, or contributions:
 
 ---
 
-*Last updated: April 2025*
+*Last updated: April 2026*
 *Version: Comprehensive electrical engineering calculator with 6 integrated modules*
