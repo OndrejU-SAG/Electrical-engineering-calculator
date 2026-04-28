@@ -29,6 +29,7 @@ function pdfSafe(s) {
     'ů': 'u',  'Ů': 'U',   // ů Ů
     // Greek / math / technical symbols
     'ρ': 'rho',  'Ω': 'Ohm',  // ρ Ω
+    'φ': 'phi',  'α': 'alpha',// φ α
     '²': '^2',   '×': 'x',    // ² ×
     '·': '*',    'Δ': 'dT',   // · Δ
     '≤': '<=',   '≥': '>=',   // ≤ ≥

@@ -461,7 +461,7 @@ function iecBuildStepsText(r) {
 
   const out = [];
   out.push('IEC 60364-5-52 / 60228 / 60364-5-54  —  ' + _tt('iecStepTitle', 'Cable Sizing  (Step-by-Step)'));
-  out.push('───────────────────────────────────────────────────────────────────');
+  out.push('-------------------------------------------------------------------');
   out.push('');
   out.push('1) ' + _tt('iecStep1', 'Inputs'));
   out.push(`   ${_tt('iecLblSystem', 'System')}: ${sysName}`);
@@ -470,7 +470,7 @@ function iecBuildStepsText(r) {
   out.push(`   ${_tt('iecLblL', 'Length L (one-way)')}: ${r.L} m`);
   if (r.system !== 'dc') out.push(`   ${_tt('iecLblCos', 'cos phi')}: ${r.cosphi}`);
   out.push(`   ${_tt('iecLblVdMax', 'Max allowed dU')}: ${r.maxVdPct} %`);
-  out.push(`   ${_tt('iecLblMat', 'Conductor material')}: ${matName}    (rho20 = ${IEC_RHO20[r.mat].toFixed(5)} Ohm.mm2/m)`);
+  out.push(`   ${_tt('iecLblMat', 'Conductor material')}: ${matName}    (rho20 = ${IEC_RHO20[r.mat].toFixed(5)} Ohm.mm2/m,  alpha = ${IEC_ALPHA[r.mat]} /degC)`);
   out.push(`   ${_tt('iecLblIns', 'Insulation')}: ${insName}    (Tmax = ${r.Tmax} °C, k_adi = ${r.k_adi})`);
   out.push(`   ${_tt('iecLblMethod', 'Reference method')}: ${r.method}    (${methodHint})`);
   out.push(`   ${_tt('iecLblConds', 'Loaded conductors')}: ${r.conds}`);
@@ -602,9 +602,10 @@ async function iecDownloadPdf() {
     doc.setFontSize(22); doc.setFont('helvetica', 'bold');
     const recText = iecFmtMm2(r.finalSize) + ' mm²';
     doc.text(pdfSafe(recText), M + 5, y + 19);
+    const recTextW = doc.getTextWidth(pdfSafe(recText));
     doc.setFontSize(11); doc.setFont('helvetica', 'normal'); setColor(C.muted, 'text');
     const awgTxt = '(' + fmtAwg(Math.round(r.awg)) + ')';
-    doc.text(pdfSafe(awgTxt), M + 5 + doc.getTextWidth(pdfSafe(recText)) + 4, y + 19);
+    doc.text(pdfSafe(awgTxt), M + 5 + recTextW + 4, y + 19);
 
     // limiting-factor pill, top-right
     const limTxt = (r.limitedBy === 'vd'

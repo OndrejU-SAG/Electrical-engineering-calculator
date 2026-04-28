@@ -42,6 +42,15 @@ function wsSwitchSub(which) {
   physPan.style.display = isIec ? 'none' : '';
 }
 
+function toggleLinksPanel() {
+  document.getElementById('linksPanel').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.links-wrap')) {
+    document.getElementById('linksPanel')?.classList.remove('open');
+  }
+});
+
 function showToast(msg, ms = 2000) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.style.opacity = '1';

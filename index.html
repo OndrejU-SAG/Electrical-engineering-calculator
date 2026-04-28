@@ -15,6 +15,19 @@
     <h1 data-t="appTitle">Kalkulátor průřezu vodiče</h1>
   </div>
   <div class="bar-end">
+    <div class="links-wrap">
+      <button class="reset-btn links-btn" onclick="toggleLinksPanel()" title="Useful links">🔗</button>
+      <div class="links-panel" id="linksPanel">
+        <div class="links-panel-hdr" data-t="linksHdr">Useful Links</div>
+        <a href="https://ondreu.github.io/IEC-60364-5-52-Installation-Methods/" target="_blank" rel="noopener">IEC 60364-5-52 Installation Methods</a>
+        <a href="https://elek.com/calculators/" target="_blank" rel="noopener">elek.com Calculators</a>
+        <a href="https://www.lappgroup.com/" target="_blank" rel="noopener">LAPP Group</a>
+        <a href="https://www.helu.com/cz-cz/home/" target="_blank" rel="noopener">HELUKABEL</a>
+        <a href="https://www.wago.com/" target="_blank" rel="noopener">WAGO</a>
+        <a href="https://www.phoenixcontact.com/" target="_blank" rel="noopener">Phoenix Contact</a>
+        <a href="https://eshop.weidmueller.com/en/" target="_blank" rel="noopener">Weidmüller</a>
+      </div>
+    </div>
     <button id="resetDefBtn" class="reset-btn" onclick="resetToDefaults()" title="Reset to defaults">↺</button>
     <div class="mu-select-wrapper">
       <select id="langDropdown" onchange="setLang(this.value)" class="mu-select">
@@ -53,7 +66,7 @@
   <!-- ─── SUB-TAB BAR (IEC vs. Physical) ────────────────────────────────── -->
   <div class="sc-subtab-bar" id="ws-subtab-bar">
     <button class="sc-subtab active" id="ws-sub-iec" onclick="wsSwitchSub('iec')" data-t="wsSubIec">⚡ IEC 60364</button>
-    <button class="sc-subtab" id="ws-sub-phys" onclick="wsSwitchSub('phys')" data-t="wsSubPhys">🔬 Fyzikální / analytický</button>
+    <button class="sc-subtab" id="ws-sub-phys" onclick="wsSwitchSub('phys')" data-t="wsSubPhys">🔬 Analytický (zjednodušený)</button>
   </div>
 
   <!-- ─── SUB-TAB 1: IEC STYLE (DEFAULT) ────────────────────────────────── -->

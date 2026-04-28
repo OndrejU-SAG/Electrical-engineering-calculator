@@ -143,6 +143,27 @@ body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--on-surf);m
 }
 .reset-btn:hover{border-color:var(--pri);color:var(--pri);background:var(--pri-a)}
 .reset-btn:active{transform:scale(.88) rotate(-180deg);transition-duration:.15s}
+.links-wrap{position:relative}
+.links-btn{font-size:15px}
+.links-btn:active{transform:scale(.88);transition-duration:.15s}
+.links-panel{
+  position:absolute;right:0;top:calc(100% + 8px);z-index:200;
+  background:var(--surf-1);border:1px solid var(--out-var);border-radius:var(--r-md);
+  padding:6px;min-width:230px;display:none;
+  box-shadow:var(--shadow-md);
+}
+.links-panel.open{display:block}
+.links-panel-hdr{
+  font-size:10.5px;font-weight:700;color:var(--on-surf-var);
+  padding:4px 8px 6px;letter-spacing:.6px;text-transform:uppercase;
+  border-bottom:1px solid var(--out-var);margin-bottom:4px;
+}
+.links-panel a{
+  display:block;padding:6px 8px;border-radius:var(--r-sm);
+  color:var(--on-surf);font-size:13px;text-decoration:none;
+  transition:background .15s var(--ease),color .15s var(--ease);
+}
+.links-panel a:hover{background:var(--pri-a);color:var(--pri)}
 .mu-switch{display:inline-flex;align-items:center;cursor:pointer;user-select:none;margin-left:6px}
 .mu-switch input{position:absolute;opacity:0;width:0;height:0}
 .mu-switch-track{
