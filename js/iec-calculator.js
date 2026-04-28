@@ -83,7 +83,10 @@ const IEC_CA = {
   pvc70:  {10:1.22, 15:1.17, 20:1.12, 25:1.06, 30:1.00, 35:0.94, 40:0.87, 45:0.79, 50:0.71, 55:0.61, 60:0.50},
   xlpe90: {10:1.15, 15:1.12, 20:1.08, 25:1.04, 30:1.00, 35:0.96, 40:0.91, 45:0.87, 50:0.82, 55:0.76, 60:0.71},
 };
+/* IEC 60364-5-52 Tab. B.52.17 — cables in air, touching */
 const IEC_CG = {1:1.00, 2:0.80, 3:0.70, 4:0.65, 5:0.60, 6:0.57, 7:0.54, 8:0.52, 9:0.50, 12:0.45, 16:0.41, 20:0.38};
+/* IEC 60364-5-52 Tab. B.52.19 — buried cables, 0.25 m spacing (reference spacing) */
+const IEC_CG_D1 = {1:1.00, 2:0.80, 3:0.72, 4:0.66, 5:0.61, 6:0.57, 7:0.54, 8:0.52, 9:0.50, 12:0.45, 16:0.41, 20:0.38};
 
 /* IEC 60228 — conductor resistivity */
 const IEC_RHO20 = {cu: 0.017241, al: 0.028264};
@@ -127,7 +130,16 @@ function iecSetSystem(btn, v) {
     if (v === '3ph' && (+V.value === 24  || +V.value === 230)) V.value = 400;
   }
   const cc = document.getElementById('iec-conductors');
-  if (cc) cc.value = (v === '3ph') ? '3' : '2';
+  if (cc) { cc.value = (v === '3ph') ? '3' : '2'; iecUpdateCondHint(cc.value); }
+}
+
+function iecUpdateCondHint(val) {
+  const hint = document.getElementById('iec-cond-hint'); if (!hint) return;
+  if (+val === 4) {
+    hint.textContent = _tt('iecCondHintN', 'Harmonics: N as loaded conductor — enter neutral current as Ib');
+  } else {
+    hint.textContent = _tt('iecCondHintAuto', 'Auto-set per system type');
+  }
 }
 
 function iecSetMaterial(btn, v) {
@@ -164,7 +176,9 @@ function iecRefreshInsHint() {
 /* ─── Lookups ──────────────────────────────────────────────────────────── */
 function iecLookupAmp(insKey, mat, conds, method, sizeIdx) {
   const def = IEC_INSUL[insKey]; if (!def) return null;
-  const tbl = IEC_AMP_CU[def.base]?.[String(conds)]?.[method];
+  // conds=4 (L1+L2+L3+N) uses the 3-conductor table per IEC 60364-5-52 §523.7
+  const condKey = +conds >= 4 ? '3' : String(conds);
+  const tbl = IEC_AMP_CU[def.base]?.[condKey]?.[method];
   if (!tbl || sizeIdx < 0 || sizeIdx >= tbl.length) return null;
   let v = tbl[sizeIdx] * def.mult;
   if (mat === 'al') v *= IEC_AL_FACTOR;
@@ -186,28 +200,32 @@ function iecGetCa(caKey, Tamb) {
   return 1.0;
 }
 
-function iecGetCg(group) {
-  if (IEC_CG[group] != null) return IEC_CG[group];
-  const keys = Object.keys(IEC_CG).map(Number).sort((a, b) => a - b);
-  if (group <= keys[0]) return IEC_CG[keys[0]];
-  if (group >= keys[keys.length - 1]) return IEC_CG[keys[keys.length - 1]];
+function iecGetCg(group, method) {
+  const tbl = (method === 'D1') ? IEC_CG_D1 : IEC_CG;
+  if (tbl[group] != null) return tbl[group];
+  const keys = Object.keys(tbl).map(Number).sort((a, b) => a - b);
+  if (group <= keys[0]) return tbl[keys[0]];
+  if (group >= keys[keys.length - 1]) return tbl[keys[keys.length - 1]];
   for (let i = 0; i < keys.length - 1; i++) {
     if (group >= keys[i] && group <= keys[i + 1]) {
       const r = (group - keys[i]) / (keys[i + 1] - keys[i]);
-      return IEC_CG[keys[i]] + r * (IEC_CG[keys[i + 1]] - IEC_CG[keys[i]]);
+      return tbl[keys[i]] + r * (tbl[keys[i + 1]] - tbl[keys[i]]);
     }
   }
   return 1.0;
 }
 
-/* ─── Voltage drop ─────────────────────────────────────────────────────── */
+/* ─── Voltage drop (IEC 60364-5-52 §G.52.2) ───────────────────────────── */
 function iecVoltageDrop({system, I, R, X, cosphi, L}) {
   const sinphi = Math.sin(Math.acos(Math.min(Math.max(cosphi, 0), 1)));
-  if (system === 'dc' || system === '1ph') {
+  if (system === 'dc') {
     return { V: I * R * 2 * L, formula: 'ΔU = 2 · I · R · L' };
   }
-  return { V: Math.sqrt(3) * I * (R * cosphi + X * sinphi) * L,
-           formula: 'ΔU = √3 · I · (R·cosφ + X·sinφ) · L' };
+  const k = system === '1ph' ? 2 : Math.sqrt(3);
+  const formula = system === '1ph'
+    ? 'ΔU = 2 · I · (R·cosφ + X·sinφ) · L'
+    : 'ΔU = √3 · I · (R·cosφ + X·sinφ) · L';
+  return { V: k * I * (R * cosphi + X * sinphi) * L, formula };
 }
 
 /* ─── Main calculation ─────────────────────────────────────────────────── */
@@ -242,7 +260,7 @@ function iecCalculate() {
 
   // 1. Correction factors
   const Ca = iecGetCa(insDef.caKey, Tamb);
-  const Cg = iecGetCg(group);
+  const Cg = iecGetCg(group, method);
   const Ctot = Ca * Cg;
   if (Ctot <= 0) {
     errBox.textContent = 'Ctot ≤ 0';

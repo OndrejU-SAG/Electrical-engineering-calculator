@@ -149,9 +149,10 @@
       </div>
       <div class="row c3" style="margin-top:8px">
         <div class="fld"><label><span data-t="iecConductors">Zatížené vodiče</span> <span class="tt" data-tt="ttIecConductors" tabindex="0">ⓘ</span></label>
-          <div class="fld-inner"><select id="iec-conductors" style="padding-left:9px">
+          <div class="fld-inner"><select id="iec-conductors" style="padding-left:9px" onchange="iecUpdateCondHint(this.value)">
             <option value="2">2 (1ph: L+N)</option>
             <option value="3" selected>3 (3ph: L1+L2+L3)</option>
+            <option value="4">4 (3ph+N: L1+L2+L3+N)</option>
           </select></div>
           <div class="fld-hint" id="iec-cond-hint" data-t="iecCondHintAuto">Automaticky podle typu soustavy</div></div>
         <div class="fld"><label data-t="iecTamb">Teplota okolí Ta</label>

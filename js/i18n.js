@@ -392,7 +392,8 @@ const T = {
     iecInsHintApprox: '{name} {tmax} °C — k = {k} ({mat}) · approximiert',
     /* Loaded conductors */
     iecCondHintAuto: 'Automatisch nach Systemtyp',
-    ttIecConductors: 'Anzahl der stromtragenden Leiter (PE zählt nicht). Wird automatisch nach Systemtyp gesetzt — Dropdown bleibt für oberwellenreiche 3-Phasen-Lasten verfügbar (IEC 60364-5-52 §523.7), bei denen der Neutralleiter mitzählt.',
+    iecCondHintN: 'Oberwellen: N als belasteter Leiter — Neutralstrom als Ib eingeben',
+    ttIecConductors: 'Anzahl der stromtragenden Leiter (PE zählt nicht). Wird automatisch nach Systemtyp gesetzt. Wählen Sie 4 (3ph+N) für 3-Phasen-Lasten mit hohem Oberwellengehalt (IEC 60364-5-52 §523.7), bei denen der N-Leiter erheblichen Strom führt — in diesem Fall den Neutralstrom als Ib eingeben.',
     /* Result-card translation keys */
     iecResRecHdr: '📐 Empfohlener Phasenleiter',
     iecResIzBase: 'Iz (Tabelle, Methode {m})',
@@ -857,7 +858,8 @@ const T = {
     iecInsHintApprox: '{name} {tmax} °C — k = {k} ({mat}) · aproximace',
     /* Loaded conductors */
     iecCondHintAuto: 'Automaticky podle typu soustavy',
-    ttIecConductors: 'Počet vodičů přenášejících proud (PE se nepočítá). Nastaví se automaticky podle typu soustavy — dropdown zůstává pro 3-fázové zátěže s vysokým obsahem harmonických (IEC 60364-5-52 §523.7), kde N čítá jako zatížený.',
+    iecCondHintN: 'Harmonické: N jako zatížený vodič — zadejte proud N jako Ib',
+    ttIecConductors: 'Počet vodičů přenášejících proud (PE se nepočítá). Nastaví se automaticky podle typu soustavy. Zvolte 4 (3ph+N) pro 3-fázové zátěže s vysokým obsahem harmonických (IEC 60364-5-52 §523.7), kde N přenáší výrazný proud — v tom případě zadejte proud N jako Ib.',
     /* Result-card translation keys */
     iecResRecHdr: '📐 Doporučený průřez fáze',
     iecResIzBase: 'Iz (z tab., metoda {m})',
@@ -1322,7 +1324,8 @@ const T = {
     iecInsHintApprox: '{name} {tmax} °C — k = {k} ({mat}) · approximated',
     /* Loaded conductors */
     iecCondHintAuto: 'Auto-set per system type',
-    ttIecConductors: 'Number of current-carrying conductors (PE not counted). Auto-set from system type — dropdown stays for high-harmonic 3-phase loads (IEC 60364-5-52 §523.7) where neutral counts as loaded.',
+    iecCondHintN: 'Harmonics: N as loaded conductor — enter neutral current as Ib',
+    ttIecConductors: 'Number of current-carrying conductors (PE not counted). Auto-set from system type. Select 4 (3ph+N) for high-harmonic 3-phase loads (IEC 60364-5-52 §523.7) where the neutral carries significant current — in that case enter the neutral current as Ib.',
     /* Result-card translation keys */
     iecResRecHdr: '📐 Recommended phase conductor',
     iecResIzBase: 'Iz (table, method {m})',
