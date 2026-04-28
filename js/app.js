@@ -20,6 +20,7 @@ function setLang(l) {
   buildRefTable();
   if (typeof scRefreshHints === 'function') scRefreshHints();
   if (typeof trayRenderRows === 'function') trayRenderRows();
+  if (typeof iecRefreshUi === 'function') iecRefreshUi();
   localStorage.setItem('language', l);
 }
 
@@ -91,20 +92,25 @@ function resetToDefaults() {
       // IEC sub-tab defaults
       clickBtn('#iec-sys-1ph');
       clickBtn('#iec-mat-cu');
-      clickBtn('#iec-ins-pvc70');
       clickBtn('#iec-pe-simp');
+      document.getElementById('iec-insulation').value = 'pvc70';
       document.getElementById('iec-voltage').value = 230;
       document.getElementById('iec-current').value = 32;
-      document.getElementById('iec-length').value = 50;
-      document.getElementById('iec-cosphi').value = 0.85;
+      document.getElementById('iec-length').value = 2;
+      document.getElementById('iec-cosphi').value = 1;
       document.getElementById('iec-max-vd').value = 3;
       document.getElementById('iec-method').value = 'B1';
-      document.getElementById('iec-conductors').value = '3';
+      document.getElementById('iec-conductors').value = '2';
       document.getElementById('iec-tamb').value = '30';
       document.getElementById('iec-grouping').value = '1';
       document.getElementById('iec-ik').value = 1.5;
       document.getElementById('iec-tdis').value = 0.4;
       document.getElementById('iec-method').dispatchEvent(new Event('change'));
+      document.getElementById('iec-insulation').dispatchEvent(new Event('change'));
+      const _iecRes = document.getElementById('iec-results');
+      const _iecSteps = document.getElementById('iec-steps-card');
+      if (_iecRes) _iecRes.style.display = 'none';
+      if (_iecSteps) _iecSteps.style.display = 'none';
       break;
     }
 

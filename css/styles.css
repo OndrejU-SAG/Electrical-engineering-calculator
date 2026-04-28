@@ -745,7 +745,15 @@ option{background:var(--surf-2);color:var(--on-surf)}
 .iec-card-hdr{
   font-size:10.5px;font-weight:700;color:var(--pri);
   text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
 }
+.iec-lim-badge{
+  display:inline-block;padding:3px 10px;border-radius:var(--r-full);
+  font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  border:1px solid transparent;
+}
+.iec-lim-badge.iec-lim-amp{background:var(--pri-a);color:var(--pri);border-color:var(--pri-glow)}
+.iec-lim-badge.iec-lim-vd{background:var(--warn-bg);color:var(--warn-col);border-color:var(--warn-bdr)}
 .iec-big{
   font-size:1.8rem;font-weight:700;color:var(--on-surf);
   line-height:1.15;margin:2px 0 6px;font-family:'Roboto',sans-serif;

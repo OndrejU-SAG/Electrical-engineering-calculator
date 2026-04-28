@@ -75,9 +75,9 @@
       </div>
       <div class="row c2">
         <div class="fld"><label data-t="iecLength">Délka L (jednosměrná)</label>
-          <div class="fld-inner"><input type="number" id="iec-length" value="50" min="0"><span class="fld-unit">m</span></div></div>
+          <div class="fld-inner"><input type="number" id="iec-length" value="2" min="0" step="any"><span class="fld-unit">m</span></div></div>
         <div class="fld" id="iec-cosphi-fld"><label><span data-t="iecCosPhi">cos φ — účiník</span> <span class="tt" data-tt="ttIecCosPhi" tabindex="0">ⓘ</span></label>
-          <div class="fld-inner"><input type="number" id="iec-cosphi" value="0.85" step="0.01" min="0" max="1"><span class="fld-unit">—</span></div>
+          <div class="fld-inner"><input type="number" id="iec-cosphi" value="1" step="0.01" min="0" max="1"><span class="fld-unit">—</span></div>
           <div class="fld-hint" data-t="iecCosPhiHint">0–1 · jen 3-fáze · 1.0 odpor. zátěž · 0.85 motor · 0.95 osvětlení</div></div>
       </div>
       <div class="fld"><label><span data-t="iecMaxVd">Povolený úbytek napětí</span> <span class="tt" data-tt="ttIecMaxVd" tabindex="0">ⓘ</span></label>
@@ -96,10 +96,14 @@
           </div>
         </div>
         <div class="fld"><label data-t="iecInsulation">Izolace</label>
-          <div class="seg-group" style="margin-bottom:0">
-            <button class="seg-btn active" id="iec-ins-pvc70"  onclick="iecSetInsul(this,'pvc70')"  data-t="iecInsPvc">PVC 70°C</button>
-            <button class="seg-btn"        id="iec-ins-xlpe90" onclick="iecSetInsul(this,'xlpe90')" data-t="iecInsXlpe">XLPE 90°C</button>
-          </div>
+          <div class="fld-inner"><select id="iec-insulation" style="padding-left:9px">
+            <option value="pvc70" selected data-t="iecInsPvc">PVC 70 °C</option>
+            <option value="xlpe90" data-t="iecInsXlpe">XLPE / EPR 90 °C</option>
+            <option value="lszh90" data-t="iecInsLszh">LSZH / HFFR 90 °C</option>
+            <option value="epr90" data-t="iecInsEpr">EPR 90 °C</option>
+            <option value="rubber60" data-t="iecInsRubber">Guma 60 °C (≈ PVC × 0.85)</option>
+          </select></div>
+          <div class="fld-hint" id="iec-ins-hint" data-t="iecInsHintDefault">PVC 70 °C — standard pro pevné instalace (k = 115 Cu / 76 Al)</div>
         </div>
       </div>
       <div class="fld" style="margin-top:8px">
@@ -131,11 +135,12 @@
         <div class="fld-hint" id="iec-method-hint" data-t="iecMethodHintDefault">B1 — vodiče v trubce na zdi</div>
       </div>
       <div class="row c3" style="margin-top:8px">
-        <div class="fld"><label data-t="iecConductors">Zatížené vodiče</label>
+        <div class="fld"><label><span data-t="iecConductors">Zatížené vodiče</span> <span class="tt" data-tt="ttIecConductors" tabindex="0">ⓘ</span></label>
           <div class="fld-inner"><select id="iec-conductors" style="padding-left:9px">
-            <option value="2">2 (L + N)</option>
-            <option value="3" selected>3 (L1+L2+L3 / L+N+PE)</option>
-          </select></div></div>
+            <option value="2">2 (1ph: L+N)</option>
+            <option value="3" selected>3 (3ph: L1+L2+L3)</option>
+          </select></div>
+          <div class="fld-hint" id="iec-cond-hint" data-t="iecCondHintAuto">Automaticky podle typu soustavy</div></div>
         <div class="fld"><label data-t="iecTamb">Teplota okolí Ta</label>
           <div class="fld-inner"><select id="iec-tamb" style="padding-left:9px">
             <option value="10">10 °C</option>
