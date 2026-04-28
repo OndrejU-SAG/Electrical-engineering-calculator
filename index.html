@@ -940,6 +940,17 @@
           <div class="fld-hint">gG: k_a dle IEC 60269-2 Annex B — I₂ = 1.6 × In_up (přetíž., info)</div>
         </div>
       </div>
+      <!-- Manufacturer coordination table override (Is) -->
+      <div class="row c2" style="margin-top:6px">
+        <div class="fld">
+          <label data-t="selUpIsMfr" for="sc-up-is-mfr">Selektivitní mez Is (kA) — z koordinační tabulky výrobce</label>
+          <div class="fld-inner">
+            <input type="number" id="sc-up-is-mfr" min="0" step="0.1" placeholder="—">
+            <span class="fld-unit">kA</span>
+          </div>
+          <div class="fld-hint" data-t="selUpIsMfrHelp">Volitelné. Je-li v tabulce „T"/„Total", zadejte Icu nadřazeného přístroje. Je-li „X"/„—", ponechte prázdné.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1055,9 +1066,10 @@
     <div id="sc-sel-panel" style="display:none">
       <div class="divider" style="margin:14px 0"></div>
       <div class="sc-res-sub-lbl" data-t="selHdr">🔀 Analýza selektivity / diskriminace</div>
-      <div class="sc-trip-box sc-trip-ok" id="sc-sel-status-box" style="margin-bottom:12px">
+      <div class="sc-trip-box sc-trip-ok" id="sc-sel-status-box" style="margin-bottom:8px">
         <div class="sc-trip-status" id="sc-sel-status-text">—</div>
       </div>
+      <div class="sc-sel-disclaimer" id="sc-sel-disclaimer" style="margin-bottom:12px"></div>
       <div class="sc-sel-table-wrap">
         <table class="sc-sel-table">
           <thead>

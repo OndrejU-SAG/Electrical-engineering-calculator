@@ -322,7 +322,7 @@ function scOnUpTypeChange() {
   document.getElementById('sc-sel-fuse-hint').style.display  = t === 'fuse' ? '' : 'none';
 }
 
-function drawSelectivityAscii(ds, usTripModes, Ik_min_A, Ik_max_A, dsTripLo, dsTripHi, state, I_sel) {
+function drawSelectivityAscii(ds, usTripModes, Ik_min_A, Ik_max_A, dsTripLo, dsTripHi, state, I_sel, subState, verdictSource, IsMfr_kA) {
   const W = 56; // bar width (characters)
 
   // Collect all finite values to set a meaningful log-scale axis range
@@ -426,11 +426,24 @@ function drawSelectivityAscii(ds, usTripModes, Ik_min_A, Ik_max_A, dsTripLo, dsT
   lines.push('▓ = DS trip   ░ = US trip   [=] = Ik1 fault range');
   lines.push('');
 
-  const statusLine = state === 2
-    ? (T[lang].selFull     || '✅ Full Selectivity')
-    : state === 1
-    ? (T[lang].selPartialPfx || '⚠ Partial — selective up to ') + (I_sel / 1000).toFixed(2) + ' kA'
-    : (T[lang].selNone     || '❌ No Selectivity');
+  let statusLine;
+  if (verdictSource === 'mfrTable') {
+    if (state === 2)      statusLine = (T[lang].selFullMfr || '✅ Full Selectivity — per manufacturer table (Is = ') + IsMfr_kA.toFixed(2) + ' kA)';
+    else if (state === 1) statusLine = (T[lang].selPartialMfrPfx || '⚠ Partial — per manufacturer table, up to Is = ') + IsMfr_kA.toFixed(2) + ' kA';
+    else                  statusLine = T[lang].selNoneMfrExceeded || '❌ No Selectivity — Ik exceeds manufacturer Is';
+  } else if (state === 2) {
+    statusLine = T[lang].selFull || '✅ Full Selectivity';
+  } else if (state === 1) {
+    statusLine = (T[lang].selPartialPfx || '⚠ Partial — selective up to ') + (I_sel / 1000).toFixed(2) + ' kA';
+  } else if (subState === 'race') {
+    statusLine = T[lang].selNoneRace || '❌ No Selectivity — Magnetic Race';
+  } else if (subState === 'uncertain') {
+    statusLine = T[lang].selNoneUncertain || '❌ No Selectivity — entire Ik range within upstream trip band';
+  } else if (subState === 'dsNoTrip') {
+    statusLine = T[lang].selNoneDsNoTrip || '❌ Downstream device does not guarantee trip';
+  } else {
+    statusLine = T[lang].selNone || '❌ No Selectivity';
+  }
   lines.push(statusLine);
 
   return lines.join('\n');
@@ -470,18 +483,23 @@ function scAnalyzeSelectivity() {
 
   let usTripLo = 0, usTripHi = 0, usTripModes = [], usLabel = '';
 
+  // For each US release mode we tag `timeGraded`:
+  //   true  → mode trips with intentional time delay (L long-delay, S short-delay) →
+  //           always selective vs. short-circuit because DS clears in ms before tsd elapses
+  //   false → mode trips instantaneously (MCB magnetic, fuse melt, MCCB I) → race-prone
+  // Only non-time-graded modes participate in zone classification below.
   if (usType === 'mcb') {
     const curve = document.getElementById('sc-up-curve')?.value || 'C';
     usTripLo = usIn * SC_CURVES[curve].min;
     usTripHi = usIn * SC_CURVES[curve].max;
-    usTripModes.push({ name: 'Magnetic ' + curve + ' ' + usIn + 'A', lo: usTripLo, hi: usTripHi });
+    usTripModes.push({ name: 'Magnetic ' + curve + ' ' + usIn + 'A', lo: usTripLo, hi: usTripHi, timeGraded: false });
     usLabel = 'MCB ' + SC_CURVES[curve].label + ' ' + usIn + 'A';
   } else if (usType === 'fuse') {
     const upDt = document.getElementById('sc-up-disc-time')?.value || '5';
     const upKa = getFuseKa(upDt);
     usTripLo = usIn * upKa.lo;
     usTripHi = usIn * upKa.hi;
-    usTripModes.push({ name: 'gG ' + usIn + 'A (≤' + upDt + 's)', lo: usTripLo, hi: usTripHi });
+    usTripModes.push({ name: 'gG ' + usIn + 'A (≤' + upDt + 's)', lo: usTripLo, hi: usTripHi, timeGraded: false });
     usLabel = 'Fuse gG ' + usIn + 'A (≤' + upDt + 's, IEC 60269-2 Annex B)';
   } else if (usType === 'mccb') {
     const Ir  = parseFloat(document.getElementById('sc-up-ir')?.value);
@@ -492,28 +510,70 @@ function scAnalyzeSelectivity() {
       if (selPanel) selPanel.style.display = 'none';
       return;
     }
-    usTripModes.push({ name: 'L long-delay ' + usIn + 'A', lo: Ir * 1.05, hi: Ir * 1.30 });
-    if (Isd < Ii) usTripModes.push({ name: 'S short-delay', lo: Isd, hi: Ii });
-    usTripModes.push({ name: 'I instantaneous', lo: Ii, hi: Infinity });
+    usTripModes.push({ name: 'L long-delay ' + usIn + 'A', lo: Ir * 1.05, hi: Ir * 1.30, timeGraded: true });
+    if (Isd < Ii) usTripModes.push({ name: 'S short-delay', lo: Isd, hi: Ii, timeGraded: true });
+    usTripModes.push({ name: 'I instantaneous', lo: Ii, hi: Infinity, timeGraded: false });
     usTripLo = Ir * 1.05;
     usTripHi = Ii;
     usLabel = 'MCCB ' + usIn + 'A (LSI)';
   }
 
-  // Selectivity evaluation
-  let state = 0, I_sel = 0;
-  const dsTrips = ds.Ik1_min_A >= dsTripHi;
-  if (dsTrips && dsTripHi < usTripLo) {
-    state = 2; I_sel = ds.Ik1_max_A;
-  } else if (dsTrips && dsTripHi < usTripHi) {
-    state = 1; I_sel = Math.min(usTripLo, ds.Ik1_max_A);
+  // Manufacturer Is override (kA) — when supplied, replaces band-based analysis
+  const isMfrRaw = parseFloat(document.getElementById('sc-up-is-mfr')?.value);
+  const IsMfr_kA = (isFinite(isMfrRaw) && isMfrRaw > 0) ? isMfrRaw : null;
+
+  // ── Selectivity classification ───────────────────────────────────────────
+  // verdictSource: 'mfrTable' (user supplied Is) | 'bandBased' (zone analysis A/B/C/D)
+  // subState:      'race' | 'uncertain' | 'dsNoTrip' | 'mfrTableExceeded' | null
+  const ikMin = ds.Ik1_min_A, ikMax = ds.Ik1_max_A;
+  const dsTrips = ikMin >= dsTripHi;
+
+  let state = 0, I_sel = 0, subState = null;
+  let verdictSource = 'bandBased';
+  let bindingMode = null;
+  let zoneLabel = 'A';
+
+  if (!dsTrips) {
+    state = 0; subState = 'dsNoTrip';
+  } else if (IsMfr_kA !== null) {
+    verdictSource = 'mfrTable';
+    const IsMfr_A = IsMfr_kA * 1000;
+    if (ikMax <= IsMfr_A) {
+      state = 2; I_sel = ikMax;
+    } else if (ikMin <= IsMfr_A) {
+      state = 1; I_sel = IsMfr_A;
+    } else {
+      state = 0; subState = 'mfrTableExceeded';
+    }
+  } else {
+    // Four-zone band-based analysis (worst zone across non-time-graded US modes)
+    const zonePri = { A: 0, B: 1, C: 2, D: 3 };
+    let worstZone = 'A', worstMode = null, partialIsel = Infinity;
+    const bindingModes = usTripModes.filter(m => !m.timeGraded);
+    for (const m of bindingModes) {
+      const hi = isFinite(m.hi) ? m.hi : Infinity;
+      let zone;
+      if (ikMax < m.lo)        zone = 'A';                          // US never even may-trip
+      else if (ikMin >= hi)    zone = 'D';                          // US guaranteed instantaneous → race
+      else if (ikMin < m.lo)   zone = 'B';                          // partial overlap from below
+      else                     zone = 'C';                          // entire Ik in may-trip band
+      if (zonePri[zone] > zonePri[worstZone]) { worstZone = zone; worstMode = m; }
+      if (zone === 'B' && m.lo < partialIsel) partialIsel = m.lo;
+    }
+    bindingMode = worstMode ? worstMode.name : (bindingModes[0]?.name || null);
+    zoneLabel = worstZone;
+    if      (worstZone === 'A') { state = 2; I_sel = ikMax; }
+    else if (worstZone === 'B') { state = 1; I_sel = isFinite(partialIsel) ? partialIsel : worstMode.lo; }
+    else if (worstZone === 'C') { state = 0; subState = 'uncertain'; }
+    else                        { state = 0; subState = 'race'; }
   }
 
   // ASCII graph
   const asciiEl = document.getElementById('sc-sel-ascii');
   if (asciiEl) {
     asciiEl.textContent = drawSelectivityAscii(
-      ds, usTripModes, ds.Ik1_min_A, ds.Ik1_max_A, dsTripLo, dsTripHi, state, I_sel
+      ds, usTripModes, ds.Ik1_min_A, ds.Ik1_max_A, dsTripLo, dsTripHi, state, I_sel,
+      subState, verdictSource, IsMfr_kA
     );
   }
 
@@ -521,17 +581,47 @@ function scAnalyzeSelectivity() {
   const statusBox  = document.getElementById('sc-sel-status-box');
   const statusText = document.getElementById('sc-sel-status-text');
   if (statusBox && statusText) {
-    if (state === 2) {
-      statusBox.className = 'sc-trip-box sc-trip-ok';
-      statusText.textContent = T[lang].selFull || '✅ Full Selectivity';
+    let cls, label;
+    if (verdictSource === 'mfrTable') {
+      if (state === 2) {
+        cls = 'sc-trip-box sc-trip-ok';
+        label = (T[lang].selFullMfr || '✅ Full Selectivity — per manufacturer table (Is = ') + IsMfr_kA.toFixed(2) + ' kA)';
+      } else if (state === 1) {
+        cls = 'sc-trip-box sc-trip-partial';
+        label = (T[lang].selPartialMfrPfx || '⚠ Partial — per manufacturer table, up to Is = ') + IsMfr_kA.toFixed(2) + ' kA';
+      } else {
+        cls = 'sc-trip-box sc-trip-fail';
+        label = T[lang].selNoneMfrExceeded || '❌ No Selectivity — Ik exceeds manufacturer Is';
+      }
+    } else if (state === 2) {
+      cls = 'sc-trip-box sc-trip-ok';
+      label = T[lang].selFull || '✅ Full Selectivity';
     } else if (state === 1) {
-      statusBox.className = 'sc-trip-box sc-trip-partial';
-      statusText.textContent =
-        (T[lang].selPartialPfx || '⚠ Partial — selective up to ') + (I_sel / 1000).toFixed(2) + ' kA';
+      cls = 'sc-trip-box sc-trip-partial';
+      label = (T[lang].selPartialPfx || '⚠ Partial — selective up to ') + (I_sel / 1000).toFixed(2) + ' kA';
+    } else if (subState === 'race') {
+      cls = 'sc-trip-box sc-trip-fail';
+      label = T[lang].selNoneRace || '❌ No Selectivity — Magnetic Race';
+    } else if (subState === 'uncertain') {
+      cls = 'sc-trip-box sc-trip-fail';
+      label = T[lang].selNoneUncertain || '❌ No Selectivity — entire Ik range within upstream trip band';
+    } else if (subState === 'dsNoTrip') {
+      cls = 'sc-trip-box sc-trip-fail';
+      label = T[lang].selNoneDsNoTrip || '❌ Downstream device does not guarantee trip — fix cable protection first';
     } else {
-      statusBox.className = 'sc-trip-box sc-trip-fail';
-      statusText.textContent = T[lang].selNone || '❌ No Selectivity';
+      cls = 'sc-trip-box sc-trip-fail';
+      label = T[lang].selNone || '❌ No Selectivity';
     }
+    statusBox.className = cls;
+    statusText.textContent = label;
+  }
+
+  // Disclaimer (always shown — text varies by verdictSource)
+  const disclEl = document.getElementById('sc-sel-disclaimer');
+  if (disclEl) {
+    disclEl.textContent = verdictSource === 'mfrTable'
+      ? (T[lang].selDisclaimerMfr || 'Verdict based on user-supplied Is from manufacturer coordination table.')
+      : (T[lang].selDisclaimer    || 'Band-based analysis. Manufacturer coordination tables required for energy/current-limiting selectivity in the magnetic region.');
   }
 
   // Comparison table
@@ -540,8 +630,11 @@ function scAnalyzeSelectivity() {
     const fmtA = v => v >= 1000 ? (v / 1000).toFixed(2) + ' kA' : Math.round(v) + ' A';
     const fmtRange = (lo, hi) => fmtA(lo) + (lo === hi ? '' : ' … ' + (isFinite(hi) ? fmtA(hi) : '∞'));
     const usModes = usTripModes.map(m =>
-      m.name + ': ' + fmtRange(m.lo, m.hi)
+      m.name + (m.timeGraded ? ' [time-graded]' : '') + ': ' + fmtRange(m.lo, m.hi)
     ).join('\n');
+    const usCol3 = verdictSource === 'mfrTable'
+      ? 'Is = ' + IsMfr_kA.toFixed(2) + ' kA'
+      : (bindingMode ? 'Zone ' + zoneLabel + ' (' + bindingMode + ')' : '—');
     tbody.innerHTML =
       '<tr>' +
         '<td>DS — ' + ds.devType.toUpperCase() + ' ' + ds.In + 'A<br><small>' + ds.curveLabel + '</small></td>' +
@@ -551,26 +644,18 @@ function scAnalyzeSelectivity() {
       '<tr>' +
         '<td>US — ' + usLabel + '</td>' +
         '<td style="white-space:pre-line">' + usModes + '</td>' +
-        '<td>—</td>' +
+        '<td>' + usCol3 + '</td>' +
       '</tr>';
   }
 
-  // Recommendations
+  // Recommendations — decision-tree builder
   const recsEl = document.getElementById('sc-sel-recs');
   if (recsEl) {
-    const recs = [];
-    if (!dsTrips) {
-      recs.push(T[lang].selRecShortCable || 'Reduce cable length or increase conductor cross-section to raise minimum fault current.');
-    }
-    if (state < 2 && usTripLo <= dsTripHi) {
-      recs.push(T[lang].selRecIncreaseUpIn || 'Increase upstream device rated current (In_up) to raise its trip threshold above the downstream trip range.');
-    }
-    if (state < 2 && usType === 'mcb') {
-      recs.push(T[lang].selRecSwitchMccb || 'Replace upstream MCB with MCCB with short-delay (S) release for time-graded selectivity.');
-    }
-    recsEl.innerHTML = recs.length
-      ? recs.map(rec => '<li>' + rec + '</li>').join('')
-      : '<li style="color:var(--on-surf-var)">' + (T[lang].selNoRecs || 'No recommendations — protection is fully selective.') + '</li>';
+    recsEl.innerHTML = buildSelectivityRecs({
+      state, subState, verdictSource, IsMfr_kA,
+      dsTripHi, ikMin, ikMax,
+      usTripLo, usTripHi, bindingMode, usType,
+    });
   }
 
   // Store for PDF export
@@ -579,9 +664,128 @@ function scAnalyzeSelectivity() {
     usLabel, usTripModes, dsTripLo, dsTripHi,
     Ik1_min_A: ds.Ik1_min_A, Ik1_max_A: ds.Ik1_max_A,
     asciiArt: document.getElementById('sc-sel-ascii')?.textContent || '',
+    subState, verdictSource, IsMfr_kA, bindingMode, zoneLabel,
   };
 
   if (selPanel) selPanel.style.display = 'block';
+}
+
+// ─── Decision-tree style recommendation builder ──────────────────────────────
+// Each guidance block contains: title (variant A/B/C…), action, why, caveat.
+// Templates use {placeholder} substitution for context-specific values.
+
+function buildSelectivityRecs(ctx) {
+  const t = (k, fallback) => (T[lang] && T[lang][k]) || fallback;
+  const fmtA = v => v >= 1000 ? (v / 1000).toFixed(2) + ' kA' : Math.round(v) + ' A';
+  const subst = (str, vars) => String(str).replace(/\{(\w+)\}/g, (m, k) => vars[k] !== undefined ? vars[k] : m);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+
+  // Compute substitution variables used across multiple variants
+  const isdMin = Math.ceil(ctx.dsTripHi);
+  const usLoStr = fmtA(ctx.usTripLo);
+  const ikMaxStr = fmtA(ctx.ikMax);
+  const deltaA = Math.max(0, Math.round(ctx.ikMax - ctx.usTripLo));
+  // minInUp = minimum upstream rated current so that usLo > IkMax
+  // The lower-trip multiplier depends on upstream device type:
+  //   MCB → SC_CURVES[curve].min   (3 / 5 / 10 / 8 / 2 for B / C / D / K / Z)
+  //   gG fuse → SC_FUSE_KA[discTime].lo
+  //   MCCB → not meaningful (Ii is independent of In_up); variant D suppressed for MCCB
+  let curveMin, curveLabel;
+  if (ctx.usType === 'fuse') {
+    const upDt = document.getElementById('sc-up-disc-time')?.value || '5';
+    curveMin = getFuseKa(upDt).lo;
+    curveLabel = 'gG ≤' + upDt + 's';
+  } else {
+    curveLabel = document.getElementById('sc-up-curve')?.value || 'C';
+    curveMin = (SC_CURVES[curveLabel] && SC_CURVES[curveLabel].min) || 5;
+  }
+  const minInUp = Math.ceil(ctx.ikMax / curveMin);
+  const vars = {
+    isdMin: fmtA(isdMin),
+    usLo:   usLoStr,
+    ikMax:  ikMaxStr,
+    delta:  fmtA(deltaA),
+    minInUp: fmtA(minInUp),
+    curve:  curveLabel,
+    curveMin: String(curveMin),
+    is: ctx.IsMfr_kA != null ? ctx.IsMfr_kA.toFixed(2) : '',
+  };
+
+  const variant = (titleKey, actionKey, whyKey, limitKey) => {
+    const action = subst(t(actionKey, ''), vars);
+    const why    = subst(t(whyKey, ''),    vars);
+    const limit  = subst(t(limitKey, ''),  vars);
+    const labelWhy   = t('selRecVariantWhy',   'Why it works:');
+    const labelLimit = t('selRecVariantLimit', 'Caveat:');
+    return '<li><div class="sc-rec-variant">' +
+      '<div class="sc-rec-vt">' + esc(t(titleKey, '')) + '</div>' +
+      (action ? '<div class="sc-rec-va">' + esc(action) + '</div>' : '') +
+      (why    ? '<div class="sc-rec-vw"><strong>' + esc(labelWhy) + '</strong> ' + esc(why) + '</div>' : '') +
+      (limit  ? '<div class="sc-rec-vl"><strong>' + esc(labelLimit) + '</strong> ' + esc(limit) + '</div>' : '') +
+    '</div></li>';
+  };
+
+  // FULL — manufacturer table guarantees, no recommendations
+  if (ctx.state === 2 && ctx.verdictSource === 'mfrTable') {
+    return '<li class="sc-rec-intro">' + esc(subst(t('selFullMfrConfirm', 'Selectivity guaranteed by manufacturer up to Is = {is} kA.'), vars)) + '</li>';
+  }
+  // FULL — band-based: still show disclaimer-style note
+  if (ctx.state === 2 && ctx.verdictSource === 'bandBased') {
+    return '<li style="color:var(--on-surf-var)">' + esc(t('selBandFullDisclaimerNote', 'Band-based — verify with manufacturer coordination table for energy selectivity.')) + '</li>';
+  }
+  // DS does not guarantee trip — fix cable protection first (no selectivity rec)
+  if (ctx.subState === 'dsNoTrip') {
+    return '<li>' + esc(t('selRecShortCable', 'Reduce cable length or increase conductor cross-section to raise minimum fault current.')) + '</li>';
+  }
+  // Manufacturer table exceeded
+  if (ctx.subState === 'mfrTableExceeded') {
+    return '<li class="sc-rec-intro">' + esc(t('selRecMfrExceededIntro', 'Actual Ik exceeds the manufacturer-supplied Is value. Options:')) + '</li>' +
+           '<li>' + esc(t('selRecMfrExceededA', 'A) Use a more selective pair (higher US series).')) + '</li>' +
+           '<li>' + esc(t('selRecMfrExceededB', 'B) Cascade with back-up protection upstream.')) + '</li>' +
+           '<li>' + esc(t('selRecMfrExceededC', 'C) MCCB with S-release as replacement.')) + '</li>';
+  }
+
+  // Decision-tree variants for race / uncertain / partial
+  let html = '';
+
+  if (ctx.subState === 'race') {
+    html += '<li class="sc-rec-intro">' + esc(t('selRecRaceIntro', 'Selectivity not guaranteed — both devices in instantaneous magnetic trip zone.')) + '</li>';
+    html += '<li class="sc-rec-hdr">' + esc(t('selRecGuideHdr', 'To achieve full selectivity, do ONE of the following:')) + '</li>';
+    html += variant('selRecVariantTitleA', 'selRecVarA_action', 'selRecVarA_why', 'selRecVarA_limit');
+    if (ctx.usType !== 'mccb') {
+      html += variant('selRecVariantTitleB', 'selRecVarB_action', 'selRecVarB_why', 'selRecVarB_limit');
+    }
+    html += variant('selRecVariantTitleC', 'selRecVarC_action', 'selRecVarC_why', 'selRecVarC_limit');
+  } else if (ctx.subState === 'uncertain') {
+    html += '<li class="sc-rec-intro">' + esc(t('selRecUncertainIntro', 'Entire Ik range lies in upstream may-trip band. Selectivity not guaranteed.')) + '</li>';
+    html += '<li class="sc-rec-hdr">' + esc(t('selRecGuideHdr', 'To achieve full selectivity, do ONE of the following:')) + '</li>';
+    if (ctx.usType !== 'mccb') {
+      html += variant('selRecVariantTitleD', 'selRecVarD_action', 'selRecVarD_why', 'selRecVarD_limit');
+    }
+    html += variant('selRecVariantTitleA', 'selRecVarA_action', 'selRecVarA_why', 'selRecVarA_limit');
+    if (ctx.usType !== 'mccb') {
+      html += variant('selRecVariantTitleB', 'selRecVarB_action', 'selRecVarB_why', 'selRecVarB_limit');
+    }
+  } else if (ctx.state === 1 && ctx.verdictSource === 'bandBased') {
+    html += '<li class="sc-rec-intro">' + esc(subst(t('selRecPartialIntro', 'Selective only up to usLo = {usLo}. For full selectivity:'), vars)) + '</li>';
+    html += '<li class="sc-rec-hdr">' + esc(t('selRecGuideHdr', 'To achieve full selectivity, do ONE of the following:')) + '</li>';
+    if (ctx.usType !== 'mccb') {
+      html += variant('selRecVariantTitleD', 'selRecVarD_action', 'selRecVarD_why', 'selRecVarD_limit');
+    }
+    html += variant('selRecVariantTitleA', 'selRecVarA_action', 'selRecVarA_why', 'selRecVarA_limit');
+    if (ctx.usType !== 'mccb') {
+      html += variant('selRecVariantTitleB', 'selRecVarB_action', 'selRecVarB_why', 'selRecVarB_limit');
+    }
+  } else if (ctx.state === 1 && ctx.verdictSource === 'mfrTable') {
+    // Partial per manufacturer table — concrete actions to push to FULL
+    html += '<li class="sc-rec-intro">' + esc(subst(t('selRecPartialMfrIntro', 'Selective only up to Is = {is} kA. For full selectivity:'), vars)) + '</li>';
+    if (ctx.usType !== 'mccb') {
+      html += variant('selRecVariantTitleD', 'selRecVarD_action', 'selRecVarD_why', 'selRecVarD_limit');
+      html += variant('selRecVariantTitleB', 'selRecVarB_action', 'selRecVarB_why', 'selRecVarB_limit');
+    }
+  }
+
+  return html || ('<li style="color:var(--on-surf-var)">' + esc(t('selNoRecs', 'No recommendations.')) + '</li>');
 }
 
 // ─── IEC 60364-4-41 §411.4.4 Disconnection Time Verification ────────────────
@@ -1253,16 +1457,56 @@ async function scDownloadPdf() {
       y = secTitle(y, 'Selectivity / Discrimination Analysis  (IEC 60898 / IEC 60947-2 / IEC 60269)');
       y += 2;
 
-      // Selectivity status badge
+      // Selectivity status badge — color/label depend on state, subState and verdictSource
       let scol, sbg, sLabel;
-      if (sel.state === 2)      { scol = [0, 160, 80];  sbg = [232, 252, 240]; sLabel = 'FULL SELECTIVITY'; }
-      else if (sel.state === 1) { scol = [180, 120, 0]; sbg = [255, 245, 220]; sLabel = 'PARTIAL SELECTIVITY — up to ' + (sel.I_sel / 1000).toFixed(2) + ' kA'; }
-      else                      { scol = [200, 40, 40]; sbg = [252, 232, 232]; sLabel = 'NO SELECTIVITY'; }
+      const isMfr = sel.verdictSource === 'mfrTable';
+      const mfrIs = sel.IsMfr_kA != null ? sel.IsMfr_kA.toFixed(2) + ' kA' : '';
+      if (sel.state === 2 && isMfr) {
+        scol = [0, 130, 130]; sbg = [228, 248, 248];
+        sLabel = 'FULL SELECTIVITY - MANUFACTURER TABLE (Is = ' + mfrIs + ')';
+      } else if (sel.state === 2) {
+        scol = [0, 160, 80];  sbg = [232, 252, 240];
+        sLabel = 'FULL SELECTIVITY (band-based)';
+      } else if (sel.state === 1 && isMfr) {
+        scol = [180, 120, 0]; sbg = [255, 245, 220];
+        sLabel = 'PARTIAL SELECTIVITY - MANUFACTURER TABLE (up to Is = ' + mfrIs + ')';
+      } else if (sel.state === 1) {
+        scol = [180, 120, 0]; sbg = [255, 245, 220];
+        sLabel = 'PARTIAL SELECTIVITY - selective up to ' + (sel.I_sel / 1000).toFixed(2) + ' kA';
+      } else if (sel.subState === 'race') {
+        scol = [200, 40, 40]; sbg = [252, 232, 232];
+        sLabel = 'NO SELECTIVITY - MAGNETIC RACE (both devices in instantaneous trip zone)';
+      } else if (sel.subState === 'uncertain') {
+        scol = [200, 40, 40]; sbg = [252, 232, 232];
+        sLabel = 'NO SELECTIVITY - entire Ik range within upstream trip band';
+      } else if (sel.subState === 'dsNoTrip') {
+        scol = [200, 40, 40]; sbg = [252, 232, 232];
+        sLabel = 'NO SELECTIVITY - downstream device does not guarantee trip';
+      } else if (sel.subState === 'mfrTableExceeded') {
+        scol = [200, 40, 40]; sbg = [252, 232, 232];
+        sLabel = 'NO SELECTIVITY - Ik exceeds manufacturer Is = ' + mfrIs;
+      } else {
+        scol = [200, 40, 40]; sbg = [252, 232, 232];
+        sLabel = 'NO SELECTIVITY';
+      }
       doc.setFillColor(...sbg); doc.setDrawColor(...scol); doc.setLineWidth(0.5);
       doc.rect(M, y, CW, 12, 'FD');
       doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...scol);
       doc.text(pdfSafe(sLabel), PW / 2, y + 8, { align: 'center' });
-      y += 12 + 5;
+      y += 12 + 4;
+
+      // Disclaimer block (always shown — text varies by verdictSource)
+      const disclaimerText = isMfr
+        ? 'Verdict based on user-supplied Is value (manufacturer coordination table). Method assumes the value is correct for this exact US/DS device pair.'
+        : 'Verdict based on trip-band vs. fault-current zone analysis (IEC 60898 / 60947-2 instantaneous bands). Energy / current-limiting selectivity in the magnetic region (Type 2 coordination) requires manufacturer coordination tables and is not evaluated here.';
+      doc.setFillColor(248, 248, 248); doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
+      const disclLines = doc.splitTextToSize(pdfSafe(disclaimerText), CW - 8);
+      const disclH = 5 + disclLines.length * 3.2;
+      doc.rect(M, y, CW, disclH, 'FD');
+      doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(80, 80, 80);
+      doc.text(disclLines, M + 4, y + 4);
+      y += disclH + 5;
+      doc.setFont('helvetica', 'normal');
 
       // Device comparison table
       const colW3 = [CW * 0.38, CW * 0.38, CW * 0.24];
@@ -1280,6 +1524,9 @@ async function scDownloadPdf() {
       y += TH;
 
       const fmtAp = v => v >= 1000 ? (v / 1000).toFixed(2) + ' kA' : Math.round(v) + ' A';
+      const usZoneCol = isMfr
+        ? 'Is = ' + mfrIs
+        : (sel.zoneLabel ? 'Zone ' + sel.zoneLabel + (sel.bindingMode ? ' (' + sel.bindingMode + ')' : '') : '-');
       const selRows = [
         [
           'DS - ' + sel.dsLabel,
@@ -1288,8 +1535,8 @@ async function scDownloadPdf() {
         ],
         [
           'US - ' + sel.usLabel,
-          sel.usTripModes.map(m => m.name + ': ' + fmtAp(m.lo) + (isFinite(m.hi) ? ' ... ' + fmtAp(m.hi) : ' -> inf')).join(' | '),
-          '-',
+          sel.usTripModes.map(m => m.name + (m.timeGraded ? ' [time-graded]' : '') + ': ' + fmtAp(m.lo) + (isFinite(m.hi) ? ' ... ' + fmtAp(m.hi) : ' -> inf')).join(' | '),
+          usZoneCol,
         ],
       ];
       const rowBg = [[248, 250, 252], [240, 244, 250]];
