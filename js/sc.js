@@ -20,11 +20,12 @@ const C_MIN = 0.95;  // for minimum fault current (protection verification)
 
 // Trip curve multipliers per IEC 60898 / IEC 60947-2
 // min = lower bound (may trip), max = upper bound (GUARANTEED instantaneous trip)
+// K curve: EN 60898-1 Annex H defines 8–12 × In. Older DIN VDE 0641 used 8–14 × In.
 const SC_CURVES = {
   B: { min: 3,  max: 5,  label: 'B (3–5 × In)'   },
   C: { min: 5,  max: 10, label: 'C (5–10 × In)'  },
   D: { min: 10, max: 20, label: 'D (10–20 × In)' },
-  K: { min: 8,  max: 14, label: 'K (8–14 × In)'  },
+  K: { min: 8,  max: 12, label: 'K (8–12 × In)'  },
   Z: { min: 2,  max: 3,  label: 'Z (2–3 × In)'   },
 };
 
@@ -859,14 +860,19 @@ function scUpdateDtv() {
   if (isFuse) {
     Ia = (SC_DTV_FUSE_IA[String(tMax)] ?? SC_DTV_FUSE_IA['0.4']) * In;
   } else {
-    // MCB instantaneous trip: upper multiplier guarantees trip in <<0.1 s (≤ any t_max).
-    // For 5 s distribution circuits, lower multiplier suffices (IEC 60898 §8.6.2.2).
+    // IEC 60364-4-41 §411.4.4: Ia = current guaranteeing disconnection within t_max.
+    // For MCBs, only c.max × In guarantees instantaneous magnetic trip (<<0.1 s, ≤ any t_max).
+    // c.min is the lower bound of the UNCERTAIN transition band — trip is not guaranteed there,
+    // regardless of t_max. IEC 60898-1 does not define thermal-element clearing time precisely
+    // enough to rely on it for the Zs check. Always use c.max.
     const c = SC_CURVES[curveSel] || SC_CURVES['C'];
-    Ia = (tMax >= 5 ? c.min : c.max) * In;
+    Ia = c.max * In;
   }
 
-  const Zs_max    = C_MIN * U0 / Ia;  // Ω — IEC 60364-4-41 §411.4.4
-  const Zs_actual = Z1_min;           // Ω — minimum fault loop impedance (c_min, hot cable)
+  // Zs × Ia ≤ U0 per IEC 60364-4-41 §411.4.4
+  // Zs_actual = Z1_min (physical loop impedance, hot cable, worst case)
+  const Zs_max    = U0 / Ia;  // Ω
+  const Zs_actual = Z1_min;   // Ω
   const pass      = Zs_actual <= Zs_max;
 
   document.getElementById('sc-dtv-ia').textContent    = Ia.toFixed(1) + ' A';
@@ -985,10 +991,18 @@ function scCalculate() {
   const Ik_max_kA = isSinglePhase
     ? Ik1_max
     : Math.max(Ik3_max, Ik2_max, Ik1_max);
-  if (Ik_max_kA > ik_kA * 1.01) {
+  // KT < 1 reduces transformer impedance, so Ik_max legitimately exceeds the
+  // rated supply Ik by up to C_MAX/KT (IEC 60909-0 §6.3.3).
+  const ikCap = (scSourceMode === 'transformer' && KT !== 1.0)
+    ? ik_kA * (C_MAX / KT) * 1.05   // 5 % margin for cable impedance
+    : ik_kA * 1.01;
+  if (Ik_max_kA > ikCap) {
     return fail(
       'Max calculated fault current (' + Ik_max_kA.toFixed(2) +
-      ' kA) exceeds supply Ik (' + ik_kA + ' kA). Check inputs.'
+      ' kA) exceeds supply Ik (' + ik_kA + ' kA)' +
+      (scSourceMode === 'transformer' && KT !== 1.0
+        ? ' even after KT correction (IEC 60909-0 §6.3.3). Check transformer data.'
+        : '. Check inputs.')
     );
   }
 
@@ -1106,7 +1120,8 @@ function scCalculate() {
     const kRow = SC_THW_K[insulType] || SC_THW_K.pvc;
     k_thw = kRow[scMaterial] ?? kRow.cu;
   }
-  const kS2       = Math.pow(k_thw * S, 2);   // (k·S)²  A²·s
+  const kS2       = Math.pow(k_thw * S,   2);   // (k·S)²   A²·s — phase
+  const kSpe2     = Math.pow(k_thw * Spe, 2);   // (k·Spe)² A²·s — PE
 
   let thw_dt;
   if (isFuse) {
@@ -1119,8 +1134,17 @@ function scCalculate() {
   }
 
   // 0 = FAIL, 1 = WARN (80–100 % of limit), 2 = PASS
-  const thw_ratio  = It2_input / kS2;
-  const thw_status = thw_ratio >= 1 ? 0 : thw_ratio >= 0.8 ? 1 : 2;
+  const thw_ratio      = It2_input / kS2;
+  const thw_status     = thw_ratio    >= 1 ? 0 : thw_ratio    >= 0.8 ? 1 : 2;
+  const thw_pe_ratio   = It2_input / kSpe2;
+  const thw_pe_status  = thw_pe_ratio >= 1 ? 0 : thw_pe_ratio >= 0.8 ? 1 : 2;
+  const thw_overall    = Math.min(thw_status, thw_pe_status);
+
+  function thwStatusStr(status, ratio) {
+    if (status === 2) return '✅ PASS (margin ' + ((1 - ratio) * 100).toFixed(0) + '%)';
+    if (status === 1) return '⚠ WARN (' + (ratio * 100).toFixed(0) + '% of limit)';
+    return '❌ FAIL';
+  }
 
   const thwCol  = document.getElementById('sc-thw-col');
   const thwCard = document.getElementById('sc-thw-card');
@@ -1129,23 +1153,29 @@ function scCalculate() {
     thwCol.style.display = '';
     document.getElementById('sc-thw-dt').textContent      = thw_dt;
     document.getElementById('sc-thw-it2-val').textContent = It2_input.toLocaleString('cs-CZ') + ' A²·s';
-    document.getElementById('sc-thw-ks2').textContent     =
-      Math.round(kS2).toLocaleString('cs-CZ') + ' A²·s  (k=' + k_thw + ', S=' + S + ' mm²)';
-    if (thw_status === 2) {
-      thwCard.className  = 'sc-thw-card sc-thw-pass';
-      thwBadge.textContent = '✅ PASS — margin ' + ((1 - thw_ratio) * 100).toFixed(0) + '%';
-    } else if (thw_status === 1) {
-      thwCard.className  = 'sc-thw-card sc-thw-warn';
-      thwBadge.textContent = '⚠ WARN — ' + (thw_ratio * 100).toFixed(0) + '% of limit';
+    document.getElementById('sc-thw-ks2').textContent =
+      Math.round(kS2).toLocaleString('cs-CZ') + ' A²·s  (k=' + k_thw + ', S=' + S + ' mm²)  ' +
+      thwStatusStr(thw_status, thw_ratio);
+    document.getElementById('sc-thw-kspe2').textContent =
+      Math.round(kSpe2).toLocaleString('cs-CZ') + ' A²·s  (k=' + k_thw + ', Spe=' + Spe + ' mm²)  ' +
+      thwStatusStr(thw_pe_status, thw_pe_ratio);
+    if (thw_overall === 2) {
+      thwCard.className    = 'sc-thw-card sc-thw-pass';
+      thwBadge.textContent = '✅ PASS — phase & PE';
+    } else if (thw_overall === 1) {
+      thwCard.className    = 'sc-thw-card sc-thw-warn';
+      thwBadge.textContent = '⚠ WARN — ' + (thw_status < thw_pe_status ? 'phase' : 'PE') + ' near limit';
     } else {
-      thwCard.className  = 'sc-thw-card sc-thw-fail';
-      thwBadge.textContent = '❌ FAIL — I²t > k²·S²';
+      thwCard.className    = 'sc-thw-card sc-thw-fail';
+      thwBadge.textContent = '❌ FAIL — ' + (thw_status === 0 && thw_pe_status === 0 ? 'phase & PE' : thw_status === 0 ? 'phase' : 'PE') + ' I²t > k²·S²';
     }
   }
 
   // ─── Assumptions display ─────────────────────────────────────────────────
   const sysLabel = scVoltPreset === 'ac1' ? '1-phase 230 V' : scVoltPreset === 'ac3' ? '3-phase 400 V' : 'Custom';
-  const voltModeStr = sysLabel + '  →  U0 = ' + engRound(U0, 4) + ' V  ·  U_LL = ' + engRound(U_LL, 4) + ' V';
+  const voltModeStr = isSinglePhase
+    ? sysLabel + '  →  U0 = U = 230 V  (single-phase; U_LL not applicable)'
+    : sysLabel + '  →  U0 = ' + engRound(U0, 4) + ' V  ·  U_LL = ' + engRound(U_LL, 4) + ' V';
   document.getElementById('sc-assumptions').textContent = [
     'Voltage: ' + voltModeStr,
     'Voltage factors: c_max = ' + C_MAX + ' (max Ik, Icu check)   c_min = ' + C_MIN + ' (min Ik, protection)',
@@ -1161,7 +1191,9 @@ function scCalculate() {
   const lines = [
     '=== Input parameters ===',
     'Voltage input: ' + voltModeStr,
-    'U_LL (line-to-line) = ' + engRound(U_LL, 4) + ' V   U0 (phase) = ' + engRound(U0, 4) + ' V',
+    isSinglePhase
+      ? 'Single-phase supply: U = U0 = 230 V  (U_LL concept not applicable)'
+      : 'U_LL (line-to-line) = ' + engRound(U_LL, 4) + ' V   U0 (phase) = ' + engRound(U0, 4) + ' V',
     'Ik_supply = ' + ik_kA + ' kA   Network: ' + scNetworkType.toUpperCase(),
     'S = ' + S + ' mm2   Spe = ' + Spe + ' mm2   L = ' + L + ' m',
     'Material: ' + scMaterial.toUpperCase() + '   Temp (min Ik): ' + scCondTemp + ' C   Temp (max Ik): 20 C',
@@ -1177,7 +1209,9 @@ function scCalculate() {
     'c_min = ' + C_MIN + '  (minimum fault current — protection / disconnection verification)',
     '',
     '=== Source impedance (complex) ===',
-    '|Zs| = U_LL / (sqrt(3) * Ik_sup) = ' + engRound(U_LL,4) + ' / (1.732 * ' + Ik_sup_A.toFixed(0) + ') = ' + fmtmOhm(Zs_mag),
+    isSinglePhase
+      ? '|Zs| = U0 / Ik_sup = ' + engRound(U0, 4) + ' / ' + Ik_sup_A.toFixed(0) + ' = ' + fmtmOhm(Zs_mag)
+      : '|Zs| = U_LL / (sqrt(3) * Ik_sup) = ' + engRound(U_LL,4) + ' / (1.732 * ' + Ik_sup_A.toFixed(0) + ') = ' + fmtmOhm(Zs_mag),
     'X/R ratio = ' + XR,
     'Rs = |Zs| / sqrt(1 + (X/R)^2) = ' + fmtmOhm(Rs),
     'Xs = (X/R) * Rs = ' + fmtmOhm(Xs),
@@ -1256,6 +1290,12 @@ function scCalculate() {
     L_max > 0
       ? 'L_max = ' + engRound(L_max, 3) + ' m   [actual L = ' + L + ' m => ' + (L > L_max ? 'EXCEEDED' : 'OK') + ']'
       : 'No solution — Ztarget > |Zs| (protection cannot be guaranteed even without cable)',
+    '',
+    '=== Cable thermal withstand — IEC 60364-4-43 §434.5 (I²t ≤ (k·S)²) ===',
+    'Insulation k factor: k = ' + k_thw + '   I²t let-through: ' + It2_input.toLocaleString() + ' A²·s   Clearing: ' + thw_dt,
+    'Phase: k·S   = ' + k_thw + ' × ' + S   + ' mm²   (k·S)²   = ' + Math.round(kS2)   + ' A²·s   I²t/limit = ' + thw_ratio.toFixed(3)    + '   => ' + ['FAIL', 'WARN', 'PASS'][thw_status],
+    'PE:    k·Spe = ' + k_thw + ' × ' + Spe + ' mm²   (k·Spe)² = ' + Math.round(kSpe2) + ' A²·s   I²t/limit = ' + thw_pe_ratio.toFixed(3) + '   => ' + ['FAIL', 'WARN', 'PASS'][thw_pe_status],
+    'Overall result: ' + ['FAIL', 'WARN', 'PASS'][thw_overall],
   ].filter(s => s !== '');
 
   document.getElementById('sc-steps').textContent = lines.join('\n');
@@ -1271,8 +1311,9 @@ function scCalculate() {
     curveSel: isFuse ? 'gG' : curveSel, curveLabel,
     voltModeStr,
     sourceMode: scSourceMode, KT,           // for PDF disclosure
+    isSinglePhase,                          // suppresses Ik3/Ik2 cards in PDF
     isFuse,                                 // for fuse-specific I²t note in PDF
-    thw: { k: k_thw, kS2, It2: It2_input, status: thw_status, dt: thw_dt, insulType },
+    thw: { k: k_thw, kS2, kSpe2, It2: It2_input, status: thw_overall, phaseStatus: thw_status, peStatus: thw_pe_status, dt: thw_dt, insulType },
   };
 
   // ─── IEC 60364-4-41 §411.4.4 Disconnection Time Verification ───────────
@@ -1363,13 +1404,14 @@ async function scDownloadPdf() {
       });
       y += impH + 4;
 
-      // ── fault current cards (3 columns, max/min range) ──
-      const cardW = CW / 3, cardH = 30;
-      [
-        { lbl: 'Ik3 — 3-phase',  sub: '3-phase fault',   valMax: fmtIkPdf(r.Ik3_max), valMin: fmtIkPdf(r.Ik3_min), hl: false },
-        { lbl: 'Ik2 — 2-phase',  sub: 'phase-to-phase',  valMax: fmtIkPdf(r.Ik2_max), valMin: fmtIkPdf(r.Ik2_min), hl: false },
-        { lbl: 'Ik1 — 1-phase',  sub: 'earth fault',     valMax: fmtIkPdf(r.Ik1_max), valMin: fmtIkPdf(r.Ik1_min), hl: true  },
-      ].forEach((f, i) => {
+      // ── fault current cards (max/min range) ──
+      const allCards = [
+        { lbl: 'Ik3 — 3-phase',  sub: '3-phase fault',   valMax: fmtIkPdf(r.Ik3_max), valMin: fmtIkPdf(r.Ik3_min), hl: false, skip: r.isSinglePhase },
+        { lbl: 'Ik2 — 2-phase',  sub: 'phase-to-phase',  valMax: fmtIkPdf(r.Ik2_max), valMin: fmtIkPdf(r.Ik2_min), hl: false, skip: r.isSinglePhase },
+        { lbl: 'Ik1 — 1-phase',  sub: r.isSinglePhase ? 'loop fault' : 'earth fault', valMax: fmtIkPdf(r.Ik1_max), valMin: fmtIkPdf(r.Ik1_min), hl: true, skip: false },
+      ].filter(f => !f.skip);
+      const cardW = CW / allCards.length, cardH = 30;
+      allCards.forEach((f, i) => {
         const cx = M + i * cardW;
         if (f.hl) { doc.setFillColor(235, 244, 252); doc.setDrawColor(...ACC); doc.setLineWidth(0.5); }
         else       { doc.setFillColor(245, 247, 250); doc.setDrawColor(200, 210, 225); doc.setLineWidth(0.2); }
@@ -1411,7 +1453,11 @@ async function scDownloadPdf() {
         else if (tw.status === 1) { twcol = [180, 120, 0]; twbg = [255, 245, 220]; twLabel = 'WARN'; }
         else                      { twcol = [200, 40, 40]; twbg = [252, 232, 232]; twLabel = 'FAIL'; }
 
-        const twH = 34;
+        function twStatusTag(st) {
+          return st === 2 ? 'PASS' : st === 1 ? 'WARN' : 'FAIL';
+        }
+
+        const twH = 40;
         doc.setFillColor(245, 247, 250); doc.setDrawColor(200, 210, 225); doc.setLineWidth(0.2);
         doc.rect(M, y, CW, twH, 'FD');
 
@@ -1421,7 +1467,10 @@ async function scDownloadPdf() {
         const twRows = [
           ['Δt clearing:', tw.dt],
           ['I²t let-through:', tw.It2.toLocaleString() + ' A²·s'],
-          ['k²·S² limit:', Math.round(tw.kS2).toLocaleString() + ' A²·s  (k=' + tw.k + ', S=' + r.S + ' mm²)'],
+          ['Phase: k²·S²   (k=' + tw.k + ', S=' + r.S + ' mm²)',
+            Math.round(tw.kS2).toLocaleString() + ' A²·s  → ' + twStatusTag(tw.phaseStatus)],
+          ['PE:    k²·Spe² (k=' + tw.k + ', Spe=' + r.Spe + ' mm²)',
+            Math.round(tw.kSpe2).toLocaleString() + ' A²·s  → ' + twStatusTag(tw.peStatus)],
         ];
         let ry = y + 11;
         twRows.forEach(([lbl, val]) => {
