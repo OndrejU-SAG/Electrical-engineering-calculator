@@ -728,6 +728,13 @@
       <div class="sc-computed-row" id="sc-tr-result">
         <span data-t="scTrIkLabel">Ik transformátoru:</span> <span id="sc-tr-ik-val">—</span>
       </div>
+      <div class="sc-sel-check-row" style="margin-top:8px">
+        <input type="checkbox" id="sc-tr-kt-apply" checked onchange="scUpdateFromTransformer()">
+        <label for="sc-tr-kt-apply"><span data-t="scTrKtApply">Aplikovat K_T (IEC 60909-0 §6.3.3)</span> <span class="tt" data-tt="ttScTrKt" tabindex="0">ⓘ</span></label>
+      </div>
+      <div class="sc-computed-row" id="sc-tr-kt-result" style="margin-top:4px">
+        <span data-t="scTrKtLabel">K_T:</span> <span id="sc-tr-kt-val">—</span>
+      </div>
     </div>
     <div class="sc-zs-display" id="sc-zs-display">
       <span data-t="scZsLabel">Zs =</span> <span id="sc-zs-val">—</span>
@@ -851,7 +858,7 @@
     <div class="fld" style="margin-top:8px">
       <label data-t="scIt2">I²t průchod (§434.5) <span class="tt" data-tt="ttScIt2" tabindex="0">ⓘ</span></label>
       <div class="fld-inner"><input type="number" id="sc-it2" value="30000" min="1" step="any"><span class="fld-unit">A²·s</span></div>
-      <div class="fld-hint" data-t="scIt2Hint">Katalogová hodnota výrobce; výchozí 30 000 A²·s ≈ 16 A C/6 kA</div>
+      <div class="fld-hint" id="sc-it2-hint" data-t="scIt2Hint">Katalogová hodnota výrobce; výchozí 30 000 A²·s ≈ 16 A C/6 kA</div>
     </div>
     <div id="sc-err" class="err-box"></div>
     <button class="btn-primary" onclick="scCalculate()" data-t="scCalcBtn">⚡ Vypočítat zkratový proud</button>

@@ -354,6 +354,12 @@ const T = {
     selRecShortCable: 'Kabellänge reduzieren oder Querschnitt erhöhen, um den minimalen Kurzschlussstrom zu steigern',
     selNoRecs: 'Keine Empfehlungen — Schutz ist vollständig selektiv.',
     selErrFill: 'Bitte alle Felder des vorgelagerten Geräts ausfüllen (positive Werte).',
+    /* IEC 60909-0 §6.3.3 K_T transformer correction + fuse I²t note */
+    scTrKtApply: 'K_T anwenden (IEC 60909-0 §6.3.3)',
+    scTrKtLabel: 'K_T:',
+    ttScTrKt: 'Impedanzkorrekturfaktor für die Berechnung des maximalen Kurzschlussstroms nach IEC 60909-0 §6.3.3. K_T = 0,95 × c_max / (1 + 0,6 × x_T). Wird nur auf Max-Ik angewendet; Min-Ik nutzt das unkorrigierte Z_T.',
+    scIt2Hint: 'Hersteller-Katalogwert; Vorgabe 30 000 A²·s ≈ 16 A C/6 kA (Durchlasswert für strombegrenzenden LS-Schalter).',
+    scIt2HintFuse: '⚠ Sicherungen: I²t MUSS aus dem Hersteller-Datenblatt entnommen werden (Total-Clearing-I²t für den prospektiven Ik). Werte variieren stark zwischen Typen/Herstellern und sind nicht aus In oder Abschaltzeit ableitbar.',
     /* Selectivity v2 — race detection, manufacturer Is override, decision-tree recommendations */
     selNoneRace: '❌ Keine Selektivität — magnetisches Wettrennen (beide Geräte im unverzögerten Auslösebereich)',
     selNoneUncertain: '❌ Keine Selektivität — gesamter Ik-Bereich liegt im Auslösebereich des vorgelagerten Geräts',
@@ -864,6 +870,12 @@ const T = {
     selRecShortCable: 'Zkraťte délku kabelu nebo zvyšte průřez pro zvýšení minimálního zkratového proudu',
     selNoRecs: 'Žádná doporučení — ochrana je plně selektivní.',
     selErrFill: 'Vyplňte všechna pole nadřazeného přístroje (kladné hodnoty).',
+    /* IEC 60909-0 §6.3.3 K_T transformer correction + fuse I²t note */
+    scTrKtApply: 'Aplikovat K_T (IEC 60909-0 §6.3.3)',
+    scTrKtLabel: 'K_T:',
+    ttScTrKt: 'Korekční faktor impedance transformátoru pro výpočet maximálního zkratového proudu dle IEC 60909-0 §6.3.3. K_T = 0.95 × c_max / (1 + 0.6 × x_T). Aplikuje se pouze na max Ik; pro min Ik se použije Z_T bez korekce.',
+    scIt2Hint: 'Katalogová hodnota výrobce; výchozí 30 000 A²·s ≈ 16 A C/6 kA (let-through pro current-limiting MCB).',
+    scIt2HintFuse: '⚠ Pojistky: I²t MUSÍ být odečteno z datasheetu výrobce (total clearing I²t pro očekávané Ik). Hodnota se výrazně liší mezi typy/výrobci, nelze odvodit z In nebo z doby odpojení.',
     /* Selectivity v2 — race detection, manufacturer Is override, decision-tree recommendations */
     selNoneRace: '❌ Bez selektivity — magnetický závod (oba přístroje v okamžitém vybavení)',
     selNoneUncertain: '❌ Bez selektivity — celý rozsah Ik leží v pásmu vybavení nadřazeného přístroje',
@@ -1374,6 +1386,12 @@ const T = {
     selRecShortCable: 'Reduce cable length or increase conductor cross-section to raise minimum fault current',
     selNoRecs: 'No recommendations — protection is fully selective.',
     selErrFill: 'Fill in all upstream device fields (positive values).',
+    /* IEC 60909-0 §6.3.3 K_T transformer correction + fuse I²t note */
+    scTrKtApply: 'Apply K_T (IEC 60909-0 §6.3.3)',
+    scTrKtLabel: 'K_T:',
+    ttScTrKt: 'Transformer impedance correction factor for maximum short-circuit current calculation per IEC 60909-0 §6.3.3. K_T = 0.95 × c_max / (1 + 0.6 × x_T). Applied to max Ik only; min Ik uses uncorrected Z_T.',
+    scIt2Hint: 'Manufacturer catalog value; default 30 000 A²·s ≈ 16 A C/6 kA (let-through for current-limiting MCB).',
+    scIt2HintFuse: '⚠ Fuses: I²t MUST be read from the manufacturer datasheet (total clearing I²t at the prospective Ik). Values vary widely between types/vendors and cannot be derived from In or disconnection time.',
     /* Selectivity v2 — race detection, manufacturer Is override, decision-tree recommendations */
     selNoneRace: '❌ No Selectivity — Magnetic Race (both devices in instantaneous trip zone)',
     selNoneUncertain: '❌ No Selectivity — entire Ik range within upstream trip band',

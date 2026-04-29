@@ -132,8 +132,25 @@ function scGetIkBusbarKA() {
   const Uk   = parseFloat(document.getElementById('sc-tr-uk').value)  || 0; // %
   const UnSec= parseFloat(document.getElementById('sc-tr-un').value)  || 400; // V
   if (!Sn || !Uk || !UnSec) return 0;
-  // Ik_tr = Sn·1000 / (√3 · UnSec · Uk/100)  →  kA
+  // Ik_tr (rated) = Sn·1000 / (√3 · UnSec · Uk/100)  →  kA
+  // Note: this returns the RATED (uncorrected) Ik. K_T correction (IEC 60909-0 §6.3.3)
+  // is applied separately to source impedance for max-Ik calculation only — see scCalculate().
   return (Sn * 1000) / (Math.sqrt(3) * UnSec * (Uk / 100)) / 1000;
+}
+
+// IEC 60909-0 §6.3.3 — impedance correction factor for two-winding network transformers
+// K_T = 0.95 × c_max / (1 + 0.6 × x_T)
+// x_T = transformer per-unit reactance ≈ (u_kr / 100) × X / √(X² + R²) (uses source X/R as proxy)
+// Applied to Z_T for max-Ik calc only. Returns 1.0 when not applicable (known mode or unchecked).
+function scGetKT() {
+  if (scSourceMode !== 'transformer') return 1.0;
+  if (!document.getElementById('sc-tr-kt-apply')?.checked) return 1.0;
+  const Uk = parseFloat(document.getElementById('sc-tr-uk')?.value) || 0;
+  if (Uk <= 0) return 1.0;
+  const xR = scSourceXR;
+  // x_T per IEC 60909-0; with X/R≈ ∞ → x_T = u_kr/100 (pure reactance, conservative).
+  const xT = (Uk / 100) * (xR > 0 ? xR / Math.sqrt(1 + xR * xR) : 1);
+  return 0.95 * C_MAX / (1 + 0.6 * xT);
 }
 
 // ─── live-update displays ────────────────────────────────────────────────────
@@ -142,6 +159,19 @@ function scUpdateFromTransformer() {
   const ik = scGetIkBusbarKA();
   const val = document.getElementById('sc-tr-ik-val');
   if (val) val.textContent = ik > 0 ? ik.toFixed(2) + ' kA' : '—';
+  const ktVal = document.getElementById('sc-tr-kt-val');
+  if (ktVal) {
+    const KT = scGetKT();
+    const applyKt = document.getElementById('sc-tr-kt-apply')?.checked;
+    if (!applyKt) {
+      ktVal.textContent = '— (not applied)';
+    } else if (KT > 0) {
+      const arrow = KT < 1 ? ' ↑Ik_max' : (KT > 1 ? ' ↓Ik_max' : '');
+      ktVal.textContent = KT.toFixed(4) + arrow;
+    } else {
+      ktVal.textContent = '—';
+    }
+  }
   scUpdateZsDisplay();
 }
 
@@ -154,9 +184,12 @@ function scUpdateZsDisplay() {
   const Rs = Zs_mag > 0 ? Zs_mag / Math.sqrt(1 + XR * XR) : 0;
   const Xs = Rs * XR;
   const val = document.getElementById('sc-zs-val');
-  if (val) val.textContent = Zs_mag > 0
-    ? fmtmOhm(Zs_mag) + '  (Rs=' + fmtmOhm(Rs) + ', Xs=' + fmtmOhm(Xs) + ')'
-    : '—';
+  if (!val) return;
+  if (Zs_mag <= 0) { val.textContent = '—'; return; }
+  let txt = fmtmOhm(Zs_mag) + '  (Rs=' + fmtmOhm(Rs) + ', Xs=' + fmtmOhm(Xs) + ')';
+  const KT = scGetKT();
+  if (KT !== 1.0) txt += '   |  Z_TK (max calc) = ' + fmtmOhm(Zs_mag * KT);
+  val.textContent = txt;
 }
 
 function scUpdateTripHint() {
@@ -199,6 +232,7 @@ function initShortCircuit() {
   scUpdateTripHint();
   scUpdateZsDisplay();
   scUpdateRhoHint();
+  scUpdateIt2Hint();
 }
 
 // ─── segment-button setters ───────────────────────────────────────────────────
@@ -255,11 +289,33 @@ function scOnDevTypeChange() {
   if (curveInner) curveInner.style.display = type === 'fuse' ? 'none' : '';
   if (discInner)  discInner.style.display  = type === 'fuse' ? '' : 'none';
   scUpdateTripHint();
+  scUpdateIt2Hint();
+}
+
+// I²t hint changes between MCB (deterministic from clearing time) and fuse (datasheet only).
+// gG fuse pre-arcing/total I²t varies widely between vendors (e.g. NH00 vs cylindrical, ~5×
+// difference) — there is no derivation from In or curve, only the datasheet value applies.
+function scUpdateIt2Hint() {
+  const hint = document.getElementById('sc-it2-hint');
+  if (!hint) return;
+  const type = document.getElementById('sc-dev-type')?.value;
+  const isFuse = type === 'fuse';
+  hint.textContent = isFuse
+    ? (T[lang]?.scIt2HintFuse ||
+       '⚠ Pojistky: I²t MUSÍ být odečteno z datasheetu výrobce (total clearing I²t pro očekávané Ik). Hodnota se výrazně liší mezi typy/výrobci, nelze odvodit z In nebo z doby odpojení.')
+    : (T[lang]?.scIt2Hint ||
+       'Katalogová hodnota výrobce; výchozí 30 000 A²·s ≈ 16 A C/6 kA (let-through pro current-limiting MCB).');
+  hint.style.color = isFuse ? 'var(--err, #c33)' : '';
+  hint.style.fontWeight = isFuse ? '500' : '';
 }
 
 function scSetSourceXR() {
   const v = parseFloat(document.getElementById('sc-xr')?.value);
-  if (!isNaN(v) && v >= 0) { scSourceXR = v; scUpdateZsDisplay(); }
+  if (!isNaN(v) && v >= 0) {
+    scSourceXR = v;
+    if (scSourceMode === 'transformer') scUpdateFromTransformer();
+    else scUpdateZsDisplay();
+  }
 }
 
 function scSetCableXpm() {
@@ -282,6 +338,7 @@ function scRefreshNetHint() {
 function scRefreshHints() {
   scRefreshNetHint();
   scUpdateTripHint();
+  scUpdateIt2Hint();
 }
 
 // ─── import from tab 0 ───────────────────────────────────────────────────────
@@ -859,10 +916,16 @@ function scCalculate() {
 
   // ── source impedance (complex) ─────────────────────────────────────────────
   const Ik_sup_A = ik_kA * 1000;
-  const Zs_mag   = U_LL / (Math.sqrt(3) * Ik_sup_A);  // |Zs|
+  const Zs_mag   = U_LL / (Math.sqrt(3) * Ik_sup_A);  // |Zs| (rated, uncorrected)
   const XR       = scSourceXR;
-  const Rs       = Zs_mag / Math.sqrt(1 + XR * XR);    // source resistance
-  const Xs       = Rs * XR;                              // source reactance
+  const Rs       = Zs_mag / Math.sqrt(1 + XR * XR);    // source resistance (rated)
+  const Xs       = Rs * XR;                              // source reactance (rated)
+  // IEC 60909-0 §6.3.3 — K_T impedance correction (transformer mode only).
+  // Applied to source impedance for MAX Ik calculation; for MIN Ik the rated Z_T is used.
+  const KT       = scGetKT();   // 1.0 if not applicable
+  const Rs_max   = Rs * KT;
+  const Xs_max   = Xs * KT;
+  const Zs_max_mag = Zs_mag * KT;
 
   // ── cable resistivity: two temperatures ────────────────────────────────────
   // Max Ik → reference temperature (20°C, IEC 60909 §4.2)
@@ -890,9 +953,9 @@ function scCalculate() {
   const Xpe     = xpm * L;
 
   // ── 3-phase loop impedances ────────────────────────────────────────────────
-  // Z3 = Zs + Zf (source + phase cable)
-  const Z3_max = cMag(Rs + Rf_max, Xs + Xf);
-  const Z3_min = cMag(Rs + Rf_hot, Xs + Xf);
+  // Z3 = Zs + Zf (source + phase cable). Max uses K_T-corrected source Z_T per IEC 60909-0.
+  const Z3_max = cMag(Rs_max + Rf_max, Xs_max + Xf);
+  const Z3_min = cMag(Rs     + Rf_hot, Xs     + Xf);
 
   // ── phase-to-phase loop impedances ────────────────────────────────────────
   // IEC 60909: I"k2 = c × U_LL / (2 × Z(1)); for symmetric Z(1)=Z(2)=Z3
@@ -901,9 +964,9 @@ function scCalculate() {
   const Z2_min = Z3_min;
 
   // ── phase-to-earth loop impedances ────────────────────────────────────────
-  // TN: Z1 = Zs + Zf + Zpe (+ Re for TT)
-  const Z1_max = cMag(Rs + Rf_max + Rpe_max + Re, Xs + Xf + Xpe);
-  const Z1_min = cMag(Rs + Rf_hot + Rpe_hot + Re, Xs + Xf + Xpe);
+  // TN: Z1 = Zs + Zf + Zpe (+ Re for TT). K_T applies only to source for max Ik.
+  const Z1_max = cMag(Rs_max + Rf_max + Rpe_max + Re, Xs_max + Xf + Xpe);
+  const Z1_min = cMag(Rs     + Rf_hot + Rpe_hot + Re, Xs     + Xf + Xpe);
 
   // ── fault currents (kA) ───────────────────────────────────────────────────
   // Max: c_max, cold cable (lowest R → highest I)
@@ -1118,6 +1181,14 @@ function scCalculate() {
     'X/R ratio = ' + XR,
     'Rs = |Zs| / sqrt(1 + (X/R)^2) = ' + fmtmOhm(Rs),
     'Xs = (X/R) * Rs = ' + fmtmOhm(Xs),
+    ...(KT !== 1.0 ? [
+      '',
+      '--- IEC 60909-0 §6.3.3 K_T transformer impedance correction ---',
+      'x_T  = (Uk/100) * X/sqrt(X^2+R^2) = ' + ((parseFloat(document.getElementById('sc-tr-uk')?.value)||0)/100*XR/Math.sqrt(1+XR*XR)).toFixed(5),
+      'K_T  = 0.95 * c_max / (1 + 0.6 * x_T) = 0.95 * ' + C_MAX + ' / (1 + 0.6 * x_T) = ' + KT.toFixed(4),
+      'Z_TK (max calc only) = K_T * Z_T = ' + fmtmOhm(Zs_max_mag),
+      'Min-Ik calc uses Z_T (uncorrected) per IEC 60909-0 §6.3.3.',
+    ] : []),
     '',
     '=== Cable impedances ===',
     'Rf_max (20C) = rho_ref * L / S   = ' + fmtmOhm(Rf_max) + '  [used for max Ik]',
@@ -1162,6 +1233,9 @@ function scCalculate() {
       'I_a lo (may trip):        ' + tripLo.toFixed(0) + ' A  [k_a_lo × In]',
       'I_a hi (guaranteed trip): ' + tripHi.toFixed(0) + ' A  [k_a_hi × In — used for L_max]',
       'I₂ (conventional fusing, overload only): ' + (SC_FUSE_FACTOR * In).toFixed(0) + ' A  [1.6 × In, IEC 60269-2]',
+      '⚠ I²t let-through (used in §434.5 cable thermal check) MUST be read from manufacturer datasheet',
+      '   for the actual prospective Ik. gG fuse I²t varies widely between types/vendors and cannot',
+      '   be derived from In or disconnection time. Default 30 000 A²·s does NOT apply to fuses.',
     ] : [
       'May trip above (lower bound):      ' + tripLo.toFixed(0) + ' A',
       'Guaranteed trip (upper bound): ' + tripHi.toFixed(0) + ' A  [IEC 60898 — used for L_max]',
@@ -1196,6 +1270,8 @@ function scCalculate() {
     Ik_max_kA, tripState, tripLo, tripHi, exceedsIcu, approachingIcu, L_max,
     curveSel: isFuse ? 'gG' : curveSel, curveLabel,
     voltModeStr,
+    sourceMode: scSourceMode, KT,           // for PDF disclosure
+    isFuse,                                 // for fuse-specific I²t note in PDF
     thw: { k: k_thw, kS2, It2: It2_input, status: thw_status, dt: thw_dt, insulType },
   };
 
@@ -1400,8 +1476,11 @@ async function scDownloadPdf() {
     // ── Input parameter rows ──
     const netLbl = { tns: 'TN-S', tnc: 'TN-C', tt: 'TT' };
     const matLbl = { cu: 'Copper (Cu)', al: 'Aluminium (Al)' };
-    const srcStr = scSourceMode === 'transformer'
-      ? 'Transformer (' + (document.getElementById('sc-tr-sn')?.value || '?') + ' kVA, Uk=' + (document.getElementById('sc-tr-uk')?.value || '?') + '%)'
+    const ktStr = (r.sourceMode === 'transformer' && r.KT && r.KT !== 1.0)
+      ? '  K_T = ' + r.KT.toFixed(4) + ' (IEC 60909-0 §6.3.3, applied to max calc)'
+      : '';
+    const srcStr = r.sourceMode === 'transformer'
+      ? 'Transformer (' + (document.getElementById('sc-tr-sn')?.value || '?') + ' kVA, Uk=' + (document.getElementById('sc-tr-uk')?.value || '?') + '%)' + ktStr
       : 'Known value';
     const inputRows = [
       ['Voltage (input)', r.voltModeStr],
@@ -1427,13 +1506,16 @@ async function scDownloadPdf() {
       mineral: 'Mineral (PVC/bare to touch)', mineralb: 'Mineral (bare, not to touch)',
       custom: 'Custom',
     };
+    const it2Cell = r.thw
+      ? (r.thw.It2.toLocaleString() + ' A²·s' + (r.isFuse ? '  - from manufacturer datasheet (mandatory for gG fuses)' : ''))
+      : '—';
     inputRows.push(
       ['Protective device', r.devType.toUpperCase()],
       ['Rated current In', r.In + ' A'],
       ['Trip characteristic', pdfSafe(r.curveLabel)],
       ['Breaking capacity Icu', r.Icu_kA + ' kA'],
       ['Cable insulation (§434.5)', insulLbl[r.thw?.insulType] || r.thw?.insulType || '—'],
-      ['I²t let-through (§434.5)', r.thw ? r.thw.It2.toLocaleString() + ' A²·s' : '—'],
+      ['I²t let-through (§434.5)', it2Cell],
     );
 
     // ── PAGE 1: Inputs + Results ──
