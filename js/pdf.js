@@ -107,6 +107,10 @@ function pdfMakeFooter(doc, { PW, PH, M, pageNum, totalPages, engineer, standard
   doc.text(left, M, PH - M - 2);
   doc.text('Page ' + pageNum + ' of ' + totalPages, PW / 2, PH - M - 2, { align: 'center' });
   if (standard) doc.text(pdfSafe(standard), PW - M, PH - M - 2, { align: 'right' });
+
+  doc.setFontSize(6.5);
+  doc.setTextColor(160, 160, 160);
+  doc.text('https://github.com/Ondreu/Electrical-engineering-calculator', PW / 2, PH - M + 2, { align: 'center' });
 }
 
 /* ─── Engineer name persistence ─────────────────────────────────────────── */
