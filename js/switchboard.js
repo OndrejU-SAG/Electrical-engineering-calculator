@@ -22,14 +22,14 @@ const DEVICE_LOSS_DB = {
   Terminal:  (n)  => n * 0.3,  // In field = number of terminals
 };
 
-/* ---- FAN VENTILATION PRESETS [label, airflow m³/h] ---- */
+/* ---- FAN VENTILATION PRESETS [i18n key, airflow m³/h] ---- */
 const FAN_PRESETS = [
-  ['— preset —', ''],
-  ['Mini fan ~50 m³/h (e.g. Stego HV 012)', '50'],
-  ['Standard fan 120mm ~150 m³/h', '150'],
-  ['Standard fan 150mm ~250 m³/h', '250'],
-  ['2× fans 200mm ~400 m³/h (1 inlet + 1 outlet)', '400'],
-  ['2× large fans 250mm ~600 m³/h', '600'],
+  ['sbFanOpt0',   ''],
+  ['sbFanOpt50',  '50'],
+  ['sbFanOpt150', '150'],
+  ['sbFanOpt250', '250'],
+  ['sbFanOpt400', '400'],
+  ['sbFanOpt600', '600'],
 ];
 
 /* ---- AWG LIST (0=1/0, -1=2/0, -2=3/0, -3=4/0) ---- */
@@ -151,7 +151,7 @@ function initSwitchboard() {
     if (natFields) {
       const div = document.createElement('div');
       div.className = 'fld';
-      div.innerHTML = '<label>Distance between openings h_eff [mm]</label>'
+      div.innerHTML = '<label data-t="sbHeff">' + ((T[lang] && T[lang].sbHeff) || 'Distance between openings h_eff [mm]') + '</label>'
         + '<div class="fld-inner"><input type="number" id="sb-open-heff" value="1000" min="1" step="any"><span class="fld-unit">mm</span></div>';
       // Insert before the hint div (last child)
       natFields.insertBefore(div, natFields.lastElementChild);
@@ -433,10 +433,12 @@ function sbMeasPointChanged() {
 function buildFanPresets() {
   const sel = document.getElementById('sb-fan-preset');
   if (!sel) return;
-  FAN_PRESETS.forEach(([label, val]) => {
+  sel.innerHTML = '';
+  FAN_PRESETS.forEach(([key, val]) => {
     const opt = document.createElement('option');
     opt.value = val;
-    opt.textContent = label;
+    opt.dataset.t = key;
+    opt.textContent = (T[lang] && T[lang][key]) || key;
     sel.appendChild(opt);
   });
 }

@@ -4,19 +4,6 @@
 
 ---
 
-## 📚 Standards Compliance Matrix
-
-| Module | Primary Standards | Additional References |
-|--------|------------------|---------------------|
-| Wire Size | IEC 60228, IEC 60364-5-52 | IEC 60287 (skin effect) |
-| MM²↔AWG | IEC 60228 Annex B | AWG standard |
-| Switchboard Temp | IEC 61439, IEC 60890 | - |
-| Short Circuit | IEC 60909, IEC 60364-4-43 | IEC 60269-2 (fuses) |
-| Motor Starting | IEC 60364-5-52, IEC 60034 | - |
-| Tray/Conduit Fill | IEC 60364-5-52 Annex B | NEC 392, NEC 358 |
-
----
-
 ## 📊 Features Overview
 
 The calculator provides **six integrated modules**, each addressing a critical aspect of electrical system design:
@@ -272,6 +259,19 @@ Calculates fill percentage for cable trays and conduits with comprehensive stand
 ```
 Fill (%) = (Total cable cross-sectional area / Tray or conduit area) × 100
 ```
+
+---
+
+## 📚 Standards Compliance Matrix
+
+| Module | Primary Standards | Additional References |
+|--------|------------------|---------------------|
+| Wire Size | IEC 60228, IEC 60364-5-52 | IEC 60287 (skin effect) |
+| MM²↔AWG | IEC 60228 Annex B | AWG standard |
+| Switchboard Temp | IEC 61439, IEC 60890 | - |
+| Short Circuit | IEC 60909, IEC 60364-4-43 | IEC 60269-2 (fuses) |
+| Motor Starting | IEC 60364-5-52, IEC 60034 | - |
+| Tray/Conduit Fill | IEC 60364-5-52 Annex B | NEC 392, NEC 358 |
 
 ---
 

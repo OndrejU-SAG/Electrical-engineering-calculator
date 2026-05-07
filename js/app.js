@@ -27,6 +27,7 @@ function setLang(l) {
   if (typeof scRefreshHints === 'function') scRefreshHints();
   if (typeof trayRenderRows === 'function') trayRenderRows();
   if (typeof iecRefreshUi === 'function') iecRefreshUi();
+  if (typeof buildFanPresets === 'function') buildFanPresets();
   localStorage.setItem('language', l);
 }
 

@@ -222,7 +222,7 @@
       </div>
       <pre class="sb-steps" id="iec-steps"></pre>
       <div class="fld" style="margin:6px 0 6px"><label data-t="pdfEngineer">Engineer</label>
-        <div class="fld-inner"><input type="text" id="iec-engineer" placeholder="Name…"></div>
+        <div class="fld-inner"><input type="text" id="iec-engineer" data-tp="placeEngineer" placeholder="Name…"></div>
       </div>
       <button type="button" class="btn-primary" id="iec-pdf-btn" style="margin-top:4px" data-t="iecPdfBtn">⬇ Stáhnout PDF</button>
     </div>
@@ -372,11 +372,11 @@
 
   <div class="wi-card" id="calcStepsCard" style="display:none">
     <div class="wi-hdr">
-      <div class="wi-title">📐 Step-by-Step Calculation</div>
+      <div class="wi-title" data-t="calcStepsHdr">📐 Step-by-Step Calculation</div>
     </div>
     <pre class="sb-steps" id="calcSteps"></pre>
     <div class="fld" style="margin:6px 0 6px"><label data-t="pdfEngineer">Engineer</label>
-      <div class="fld-inner"><input type="text" id="calc-engineer" placeholder="Name…"></div>
+      <div class="fld-inner"><input type="text" id="calc-engineer" data-tp="placeEngineer" placeholder="Name…"></div>
     </div>
     <button class="btn-primary" id="calc-pdf-btn" onclick="calcDownloadPdf()" style="margin-top:4px" data-t="scPdfBtn">⬇ Download PDF</button>
   </div>
@@ -474,11 +474,11 @@
     <div class="sb-tbl-wrap">
       <table class="sb-tbl">
         <thead><tr>
-          <th>Typ / Označení</th>
+          <th data-t="sbColDevType">Typ / Označení</th>
           <th data-t="sbColIn">In [A]</th>
-          <th>Ztráty [W/ks]</th>
+          <th data-t="sbColDevLoss">Ztráty [W/ks]</th>
           <th data-t="sbColN">Počet</th>
-          <th>Celkem [W]</th>
+          <th data-t="sbColDevTotal">Celkem [W]</th>
           <th data-t="sbSuggest">Akce</th>
         </tr></thead>
         <tbody id="sb-dev-body"></tbody>
@@ -498,7 +498,7 @@
     <div id="sb-enc-ts8" style="display:none;margin-bottom:10px">
       <div class="fld"><label data-t="sbTs8Size">Velikost TS8</label>
         <div class="fld-inner"><select id="sb-ts8-sel" onchange="sbTs8Changed()" style="padding-left:9px"></select></div>
-        <small style="color:#888;display:block;margin-top:2px">TS8 — verify mounting per project drawings</small></div>
+        <small style="color:#888;display:block;margin-top:2px" data-t="sbTs8Note">TS8 — verify mounting per project drawings</small></div>
     </div>
     <div class="row c3 sb-dim-row">
       <div class="fld"><label data-t="sbHeight">Výška [mm]</label>
@@ -516,7 +516,7 @@
     <div class="sb-ae-display" id="sb-ae-display"><span data-t="sbAe">Ae</span> <span class="tt" data-tt="ttSbAe" tabindex="0">ⓘ</span> = <span>—</span></div>
 
     <div class="divider" style="margin:14px 0"></div>
-    <div class="sb-section-hdr" style="margin-bottom:10px">♨ Odvod tepla — konvekční koeficient k</div>
+    <div class="sb-section-hdr" style="margin-bottom:10px" data-t="sbSec4k">♨ Odvod tepla — konvekční koeficient k</div>
     <div class="seg-group" style="margin-bottom:12px">
       <button class="seg-btn active" onclick="sbSetHeatModeUI(this,'calc')" data-t="sbHeatCalc">Výpočtem k × Ae</button>
       <button class="seg-btn" onclick="sbSetHeatModeUI(this,'manual')" data-t="sbHeatManual">Zadat ručně [W/K]</button>
@@ -524,12 +524,12 @@
     <div id="sb-heat-calc-row">
       <div class="fld" style="margin-bottom:8px"><label data-t="sbKPreset">Přednastavený scénář</label>
         <div class="fld-inner"><select id="sb-k-preset" onchange="sbApplyKPreset(this.value)" style="padding-left:9px">
-          <option value="">— vyberte —</option>
-          <option value="5.5">Lakovaná ocel, volně stojící — 5.5 W/m²K (IEC 61439)</option>
-          <option value="5.0">Nástěnná montáž, lakovaná ocel — 5.0 W/m²K</option>
-          <option value="4.5">IP54/IP65, omezená cirkulace — 4.5 W/m²K</option>
-          <option value="3.5">Venkovní, přímé sluneční záření — 3.5 W/m²K</option>
-          <option value="7.0">Hliníková skříň, přirozená konvekce — 7.0 W/m²K</option>
+          <option value="" data-t="sbKOpt0">— vyberte —</option>
+          <option value="5.5" data-t="sbKOpt55">Lakovaná ocel, volně stojící — 5,5 W/m²K (IEC 61439)</option>
+          <option value="5.0" data-t="sbKOpt50">Nástěnná montáž, lakovaná ocel — 5,0 W/m²K</option>
+          <option value="4.5" data-t="sbKOpt45">IP54/IP65, omezená cirkulace — 4,5 W/m²K</option>
+          <option value="3.5" data-t="sbKOpt35">Venkovní, přímé sluneční záření — 3,5 W/m²K</option>
+          <option value="7.0" data-t="sbKOpt70">Hliníková skříň, přirozená konvekce — 7,0 W/m²K</option>
         </select></div></div>
       <div class="fld"><label><span data-t="sbK">k [W/m²K] — konvekční koeficient</span> <span class="tt" data-tt="ttSbK" tabindex="0">ⓘ</span></label>
         <div class="fld-inner">
@@ -580,7 +580,7 @@
           <label for="sb-force-on" data-t="sbForceVent">Nucené větrání (ventilátor)</label>
         </div>
         <div id="sb-force-fields" style="display:none">
-          <div class="fld" style="margin-bottom:8px"><label>Typický ventilátor (preset)</label>
+          <div class="fld" style="margin-bottom:8px"><label data-t="sbFanPreset">Typický ventilátor (preset)</label>
             <div class="fld-inner"><select id="sb-fan-preset" onchange="sbApplyFanPreset(this.value)" style="padding-left:9px"></select></div></div>
           <div class="fld"><label data-t="sbAirflow">Průtok vzduchu [m³/h]</label>
             <div class="fld-inner"><input type="number" id="sb-airflow" value="0" min="0" step="any"><span class="fld-unit">m³/h</span></div></div>
@@ -595,7 +595,7 @@
     <div class="fld" style="margin-bottom:12px"><label><span data-t="sbTa">Teplota okolí Ta [°C]</span> <span class="tt" data-tt="ttSbTa" tabindex="0">ⓘ</span></label>
       <div class="fld-inner"><input type="number" id="sb-ta" value="35" min="-50" max="60"><span class="fld-unit">°C</span></div></div>
     <div class="fld" style="margin-bottom:12px"><label data-t="sbEngineer">Zpracoval / Engineer</label>
-      <div class="fld-inner"><input type="text" id="sb-engineer" placeholder="Jméno / Name…"></div></div>
+      <div class="fld-inner"><input type="text" id="sb-engineer" data-tp="placeEngineer" placeholder="Jméno / Name…"></div></div>
     <div class="fld" style="margin-bottom:12px"><label data-t="sbPhotos">Fotografie do PDF (max. 2)</label>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
         <input type="file" id="sb-photo1" accept="image/*" class="sb-file-input">
@@ -630,7 +630,7 @@
     </div>
     <div class="fld-hint" id="sb-r-limit-note" style="margin-top:4px;font-size:11px;color:var(--on-surf-var)"></div>
     <div class="sb-status-hot" id="sb-status-hot" data-t="sbStatusHot">Vnitřní teplota může překročit jmenovitou teplotu komponent — ověřte</div>
-    <div class="res-lbl" style="margin-top:14px">Postup výpočtu</div>
+    <div class="res-lbl" style="margin-top:14px" data-t="calcStepsHdr">Postup výpočtu</div>
     <pre class="sb-steps" id="sb-steps"></pre>
     <button class="btn-primary" id="sb-pdf-btn" onclick="sbDownloadPdf()" style="margin-top:8px" data-t="sbPdfBtn">⬇ Stáhnout PDF</button>
   </div>
@@ -1111,10 +1111,10 @@
     <pre class="sc-assumptions" id="sc-assumptions"></pre>
 
     <div class="divider" style="margin:14px 0"></div>
-    <div class="res-lbl">Postup výpočtu</div>
+    <div class="res-lbl" data-t="calcStepsHdr">Postup výpočtu</div>
     <pre class="sb-steps" id="sc-steps"></pre>
     <div class="fld" style="margin:10px 0 6px"><label data-t="pdfEngineer">Engineer</label>
-      <div class="fld-inner"><input type="text" id="sc-engineer" placeholder="Name…"></div></div>
+      <div class="fld-inner"><input type="text" id="sc-engineer" data-tp="placeEngineer" placeholder="Name…"></div></div>
     <button class="btn-primary" id="sc-pdf-btn" onclick="scDownloadPdf()" style="margin-top:6px" data-t="scPdfBtn">⬇ Stáhnout PDF</button>
   </div>
 
@@ -1383,10 +1383,10 @@
       <div class="sc-maxlen-box sc-maxlen-ok" id="dc-maxlen-box">—</div>
 
       <div class="divider" style="margin:14px 0"></div>
-      <div class="res-lbl">Step-by-Step Calculation</div>
+      <div class="res-lbl" data-t="calcStepsHdr">Step-by-Step Calculation</div>
       <pre class="sb-steps" id="dc-steps"></pre>
       <div class="fld" style="margin:10px 0 6px"><label data-t="pdfEngineer">Engineer</label>
-        <div class="fld-inner"><input type="text" id="dc-engineer" placeholder="Name…"></div></div>
+        <div class="fld-inner"><input type="text" id="dc-engineer" data-tp="placeEngineer" placeholder="Name…"></div></div>
       <button class="btn-primary" id="dc-pdf-btn" onclick="dcDownloadPdf()" style="margin-top:6px" data-t="dcPdfBtn">⬇ Download PDF</button>
     </div>
 
@@ -1580,7 +1580,7 @@
 
       <div class="fld" style="margin-bottom:12px">
         <label data-t="mscEngineer">Jméno projektanta</label>
-        <div class="fld-inner"><input type="text" id="msc-engineer" placeholder="např. Ing. Novák"></div>
+        <div class="fld-inner"><input type="text" id="msc-engineer" data-tp="placeEngineer" placeholder="např. Ing. Novák"></div>
       </div>
     </div>
 
@@ -1873,7 +1873,7 @@
     <div class="warn-chip" id="tray-iec-12cable-note" data-t="tray_iec12CableNote" style="display:none;margin-top:8px">ℹ IEC 60364-5-52 Annex B does not separate 1/2-cable cases; 40 % conservative limit applied.</div>
 
     <div class="fld" style="margin:10px 0 6px"><label data-t="pdfEngineer">Engineer</label>
-      <div class="fld-inner"><input type="text" id="tray-engineer" placeholder="Name…"></div></div>
+      <div class="fld-inner"><input type="text" id="tray-engineer" data-tp="placeEngineer" placeholder="Name…"></div></div>
     <button class="btn-primary" onclick="trayDownloadPdf()" style="margin-top:6px" data-t="tray_pdfBtn">⬇ Download PDF</button>
   </div>
 
